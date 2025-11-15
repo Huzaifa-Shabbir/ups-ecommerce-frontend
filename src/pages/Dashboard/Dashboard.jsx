@@ -15,26 +15,49 @@ const Dashboard = () => {
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    setErr(null);
-    Promise.all([
-      getCategories(),
-      getProducts(accessToken),
-      getAvailableServices(accessToken)
-    ])
-      .then(([catRes, prodRes, servRes]) => {
-        setCategories(catRes.categories || []);
-        setProducts(prodRes.products || []);
-        setServices(servRes.services || []);
-      })
-      .catch(e => setErr(e.message))
-      .finally(() => setLoading(false));
+    const fetchData = async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const [catRes, prodRes, servRes] = await Promise.all([
+          getCategories(),
+          getProducts(accessToken),
+          getAvailableServices(accessToken)
+        ]);
+        
+        console.log('Categories Response:', catRes);
+        console.log('Products Response:', prodRes);
+        console.log('Services Response:', servRes);
+        
+        // Handle different response structures
+        const categoriesData = Array.isArray(catRes) ? catRes : (catRes.categories || []);
+        const productsData = Array.isArray(prodRes) ? prodRes : (prodRes.products || []);
+        const servicesData = Array.isArray(servRes) ? servRes : (servRes.services || []);
+        
+        console.log('Parsed Categories:', categoriesData);
+        console.log('Parsed Products:', productsData);
+        console.log('Parsed Services:', servicesData);
+        
+        setCategories(categoriesData);
+        setProducts(productsData);
+        setServices(servicesData);
+      } catch (e) {
+        console.error('Error fetching data:', e);
+        setErr(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
   }, [accessToken]);
 
-  const filteredProducts = products.filter(p => 
-    (selectedCategory === 'all' || p.category === selectedCategory) &&
-    (searchTerm === '' || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProducts = products.filter(p => {
+    const categoryName = typeof p.category === 'object' ? p.category?.name : p.category;
+    const matchesCategory = selectedCategory === 'all' || categoryName === selectedCategory;
+    const matchesSearch = searchTerm === '' || (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -112,13 +135,13 @@ const Dashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/10 backdrop-blur-lg p-4 rounded-lg">
                 <TrendingUp className="w-8 h-8 mb-2" />
-                <div className="text-2xl font-bold">500+</div>
+                <div className="text-2xl font-bold">{products.length}+</div>
                 <div className="text-sm text-green-50">Products</div>
               </div>
               <div className="bg-white/10 backdrop-blur-lg p-4 rounded-lg">
                 <Package className="w-8 h-8 mb-2" />
-                <div className="text-2xl font-bold">10k+</div>
-                <div className="text-sm text-green-50">Orders</div>
+                <div className="text-2xl font-bold">{categories.length}+</div>
+                <div className="text-sm text-green-50">Categories</div>
               </div>
             </div>
           </div>
@@ -134,7 +157,8 @@ const Dashboard = () => {
       {err && (
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-            {err}
+            <p className="font-semibold">Error loading data:</p>
+            <p>{err}</p>
           </div>
         </div>
       )}
@@ -144,25 +168,31 @@ const Dashboard = () => {
           {/* Categories */}
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by Category</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.map(cat => (
-                <button
-                  key={cat.category_id}
-                  onClick={() => setSelectedCategory(cat.name)}
-                  className={`p-6 rounded-xl transition transform hover:scale-105 shadow-md ${
-                    selectedCategory === cat.name
-                      ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
-                      : 'bg-white hover:shadow-lg'
-                  }`}
-                >
-                  <div className="text-3xl mb-3">⚡</div>
-                  <h3 className="font-semibold text-lg mb-1">{cat.name}</h3>
-                  <p className={`text-sm ${selectedCategory === cat.name ? 'text-green-50' : 'text-gray-600'}`}>
-                    {cat.description}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {categories.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {categories.map(cat => (
+                  <button
+                    key={cat.category_id}
+                    onClick={() => setSelectedCategory(cat.name)}
+                    className={`p-6 rounded-xl transition transform hover:scale-105 shadow-md ${
+                      selectedCategory === cat.name
+                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
+                        : 'bg-white hover:shadow-lg'
+                    }`}
+                  >
+                    <div className="text-3xl mb-3">⚡</div>
+                    <h3 className="font-semibold text-lg mb-1">{cat.name}</h3>
+                    <p className={`text-sm ${selectedCategory === cat.name ? 'text-green-50' : 'text-gray-600'}`}>
+                      {cat.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-600">No categories available.</p>
+              </div>
+            )}
           </section>
 
           {/* Products */}
@@ -192,11 +222,17 @@ const Dashboard = () => {
                       </button>
                     </div>
                     <div className="p-5">
-                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">{prod.category}</span>
-                      <h3 className="font-bold text-lg mt-2 mb-1 text-gray-900">{prod.name}</h3>
-                      <p className="text-sm text-gray-600 mb-4">{prod.description}</p>
+                      {prod.category && (
+                        <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">
+                          {typeof prod.category === 'object' ? prod.category.name : prod.category}
+                        </span>
+                      )}
+                      <h3 className="font-bold text-lg mt-2 mb-1 text-gray-900">{prod.name || 'Unnamed Product'}</h3>
+                      <p className="text-sm text-gray-600 mb-4">{prod.description || 'No description available'}</p>
                       <div className="flex justify-between items-center">
-                        <span className="text-2xl font-bold text-green-600">₹{prod.price.toLocaleString()}</span>
+                        <span className="text-2xl font-bold text-green-600">
+                          ₹{prod.price ? prod.price.toLocaleString() : '0'}
+                        </span>
                         <button 
                           onClick={() => setCartCount(c => c + 1)}
                           className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105"
@@ -216,26 +252,30 @@ const Dashboard = () => {
           </section>
 
           {/* Services */}
-          <section className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
-            <h2 className="text-2xl font-bold mb-6">Our Services</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {services.map(serv => (
-                <div key={serv.service_id} className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/20 transition">
-                  <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
-                    <Package className="w-6 h-6" />
+          {services.length > 0 && (
+            <section className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
+              <h2 className="text-2xl font-bold mb-6">Our Services</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {services.map(serv => (
+                  <div key={serv.service_id} className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/20 transition">
+                    <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
+                      <Package className="w-6 h-6" />
+                    </div>
+                    <h3 className="font-bold text-xl mb-2">{serv.service_name || 'Service'}</h3>
+                    <p className="text-gray-300 mb-4">Professional service with warranty</p>
+                    <div className="flex justify-between items-center">
+                      <span className="text-2xl font-bold text-green-400">
+                        ₹{serv.price ? serv.price.toLocaleString() : '0'}
+                      </span>
+                      <button className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                        Book Now
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-xl mb-2">{serv.service_name}</h3>
-                  <p className="text-gray-300 mb-4">Professional service with warranty</p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-green-400">₹{serv.price.toLocaleString()}</span>
-                    <button className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
-                      Book Now
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
