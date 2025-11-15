@@ -1,404 +1,285 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCategories, getProducts, getAvailableServices } from "../../services/api";
-import { useAuth } from "../../context/AuthContext";
-import styles from "./Dashboard.module.css";
+import React, { useEffect, useState } from 'react';
+import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap } from 'lucide-react';
+import { getCategories, getProducts, getAvailableServices } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
-// Dummy image fallback
-const DUMMY_IMG = "https://placehold.co/120x80?text=Image";
-
-// Utility: debounce
-function useDebounce(value, delay = 400) {
-  const [debounced, setDebounced] = useState(value);
-  React.useEffect(() => {
-    const handler = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debounced;
-}
-
-// Summary row
-function SummaryRow({ categories, productsCount, services }) {
-  return (
-    <div className={styles.summaryRow}>
-      <div className={styles.summaryItem}>
-        <span className={styles.summaryCount}>{categories.length}</span>
-        <span>Categories</span>
-      </div>
-      <div className={styles.summaryItem}>
-        <span className={styles.summaryCount}>{productsCount}</span>
-        <span>Products</span>
-      </div>
-      <div className={styles.summaryItem}>
-        <span className={styles.summaryCount}>{services.length}</span>
-        <span>Services</span>
-      </div>
-    </div>
-  );
-}
-
-// Category panel with expand/collapse and search
-function CategoriesPanel({
-  categories,
-  expanded,
-  onToggle,
-  search,
-  setSearch,
-  loading,
-  error,
-  onRetry,
-}) {
-  return (
-    <aside className={styles.categoriesPanel} aria-label="Categories">
-      <div className={styles.categoriesHeader}>
-        <span>Categories</span>
-        <button
-          className={styles.retryBtn}
-          style={{ display: error ? "inline-block" : "none" }}
-          onClick={onRetry}
-        >
-          Retry
-        </button>
-      </div>
-      <input
-        className={styles.searchInput}
-        type="search"
-        placeholder="Search categories"
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        aria-label="Search categories"
-      />
-      {loading && (
-        <div>
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className={styles.categorySkeleton} />
-          ))}
-        </div>
-      )}
-      {error && <div className={styles.errorText}>{error}</div>}
-      {!loading && !error && (
-        <ul className={styles.categoryList}>
-          {categories.map(cat => (
-            <li key={cat.category_id}>
-              <button
-                className={styles.categoryBtn}
-                aria-expanded={expanded === cat.category_id}
-                aria-controls={`cat-panel-${cat.category_id}`}
-                onClick={() => onToggle(cat.category_id)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" || e.key === " ") onToggle(cat.category_id);
-                }}
-              >
-                <span>{cat.name}</span>
-                <span className={styles.chevron}>
-                  {expanded === cat.category_id ? "▼" : "▶"}
-                </span>
-              </button>
-            </li>
-          ))}
-          {categories.length === 0 && <li>No categories found.</li>}
-        </ul>
-      )}
-    </aside>
-  );
-}
-
-// Products grid for a category
-function ProductsGrid({
-  category,
-  productsQuery,
-  onRetry,
-  search,
-  setSearch,
-  page,
-  setPage,
-  hasMore,
-}) {
-  return (
-    <section
-      className={styles.productsSection}
-      aria-labelledby={`cat-header-${category.category_id}`}
-    >
-      <div className={styles.productsHeader}>
-        <h2 id={`cat-header-${category.category_id}`}>
-          {category.name}{" "}
-          <span className={styles.productsCount}>
-            ({productsQuery.data?.products?.length || 0})
-          </span>
-        </h2>
-        <input
-          className={styles.searchInput}
-          type="search"
-          placeholder="Search products"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          aria-label={`Search products in ${category.name}`}
-        />
-      </div>
-      {productsQuery.isLoading && (
-        <div className={styles.productsGrid}>
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className={styles.productSkeleton} />
-          ))}
-        </div>
-      )}
-      {productsQuery.isError && (
-        <div className={styles.errorText}>
-          {productsQuery.error.message}
-          <button className={styles.retryBtn} onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      )}
-      {productsQuery.isSuccess && (
-        <>
-          <div className={styles.productsGrid}>
-            {productsQuery.data.products.length === 0 && (
-              <div className={styles.emptyState}>No products found.</div>
-            )}
-            {productsQuery.data.products.map(prod => (
-              <div className={styles.productCard} key={prod.product_id}>
-                <img
-                  src={prod.image_url || DUMMY_IMG}
-                  alt={prod.name}
-                  className={styles.cardImg}
-                />
-                <div>
-                  <div className={styles.cardTitle}>{prod.name}</div>
-                  <div className={styles.cardDesc}>{prod.description}</div>
-                  <div className={styles.cardPrice}>₹{prod.price}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className={styles.paginationRow}>
-            <button
-              className={styles.pageBtn}
-              onClick={() => setPage(page - 1)}
-              disabled={page <= 1}
-            >
-              Prev
-            </button>
-            <span className={styles.pageNum}>Page {page}</span>
-            <button
-              className={styles.pageBtn}
-              onClick={() => setPage(page + 1)}
-              disabled={!hasMore}
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
-
-// Services section
-function ServicesSection({ servicesQuery, onRetry }) {
-  return (
-    <section className={styles.servicesSection} aria-label="Services">
-      <h2>Services</h2>
-      {servicesQuery.isLoading && (
-        <div className={styles.servicesGrid}>
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className={styles.serviceSkeleton} />
-          ))}
-        </div>
-      )}
-      {servicesQuery.isError && (
-        <div className={styles.errorText}>
-          {servicesQuery.error.message}
-          <button className={styles.retryBtn} onClick={onRetry}>
-            Retry
-          </button>
-        </div>
-      )}
-      {servicesQuery.isSuccess && (
-        <div className={styles.servicesGrid}>
-          {servicesQuery.data.services.length === 0 && (
-            <div className={styles.emptyState}>No services found.</div>
-          )}
-          {servicesQuery.data.services.map(serv => (
-            <div className={styles.serviceCard} key={serv.service_id}>
-              <img
-                src={serv.image_url || DUMMY_IMG}
-                alt={serv.service_name}
-                className={styles.cardImg}
-              />
-              <div>
-                <div className={styles.cardTitle}>{serv.service_name}</div>
-                <div className={styles.cardPrice}>₹{serv.price}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-
-// Main Dashboard
 const Dashboard = () => {
   const { accessToken } = useAuth();
-  const queryClient = useQueryClient();
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [cartCount, setCartCount] = useState(0);
 
-  // Categories state
-  const [expandedCat, setExpandedCat] = useState(null);
-  const [catSearch, setCatSearch] = useState("");
-  const debouncedCatSearch = useDebounce(catSearch, 300);
-
-  // Per-category search and page state
-  const [catProductSearch, setCatProductSearch] = useState({});
-  const [catProductPage, setCatProductPage] = useState({});
-
-  // Fetch categories
-  const categoriesQuery = useQuery({
-    queryKey: ["categories", debouncedCatSearch],
-    queryFn: async () => {
-      const res = await getCategories();
-      if (debouncedCatSearch)
-        res.categories = res.categories.filter(cat =>
-          cat.name.toLowerCase().includes(debouncedCatSearch.toLowerCase())
-        );
-      return res.categories;
-    },
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Fetch services
-  const servicesQuery = useQuery({
-    queryKey: ["services"],
-    queryFn: () => getAvailableServices(accessToken),
-    staleTime: 5 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Fetch products for expanded category only (lazy loading)
-  const expandedCategory = useMemo(
-    () =>
-      categoriesQuery.data?.find(cat => cat.category_id === expandedCat) || null,
-    [categoriesQuery.data, expandedCat]
-  );
-  const expandedCatSearch = catProductSearch[expandedCat] || "";
-  const expandedCatPage = catProductPage[expandedCat] || 1;
-
-  const productsQuery = useQuery({
-    queryKey: [
-      "products",
-      expandedCat,
-      expandedCatSearch,
-      expandedCatPage,
-      accessToken,
-    ],
-    queryFn: async () => {
-      if (!expandedCat) return { products: [], total: 0, page: 1, limit: 12 };
-      const params = new URLSearchParams({
-        categoryId: expandedCat,
-        search: expandedCatSearch,
-        page: expandedCatPage,
-        limit: 8,
-      });
-      const res = await getProducts(accessToken, params.toString());
-      return res;
-    },
-    enabled: !!expandedCat,
-    keepPreviousData: true,
-    staleTime: 2 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Count all products (for summary row)
-  const allProductsCount = queryClient.getQueryData(["allProductsCount"]) || 0;
   useEffect(() => {
-    if (categoriesQuery.data && accessToken) {
-      // Prefetch all products count (not paginated, just for summary)
-      getProducts(accessToken).then(res => {
-        queryClient.setQueryData(["allProductsCount"], res.products.length);
-      });
-    }
-  }, [categoriesQuery.data, accessToken, queryClient]);
+    setLoading(true);
+    setErr(null);
+    Promise.all([
+      getCategories(),
+      getProducts(accessToken),
+      getAvailableServices(accessToken)
+    ])
+      .then(([catRes, prodRes, servRes]) => {
+        setCategories(catRes.categories || []);
+        setProducts(prodRes.products || []);
+        setServices(servRes.services || []);
+      })
+      .catch(e => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, [accessToken]);
 
-  // Handlers
-  const handleExpand = useCallback(
-    catId => setExpandedCat(expandedCat === catId ? null : catId),
-    [expandedCat]
+  const filteredProducts = products.filter(p => 
+    (selectedCategory === 'all' || p.category === selectedCategory) &&
+    (searchTerm === '' || p.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
-  const handleCatProductSearch = useCallback(
-    (catId, val) =>
-      setCatProductSearch(prev => ({ ...prev, [catId]: val })),
-    []
-  );
-  const handleCatProductPage = useCallback(
-    (catId, val) =>
-      setCatProductPage(prev => ({ ...prev, [catId]: val })),
-    []
-  );
-
-  // Fallback UI for loading/error
-  if (categoriesQuery.isLoading || servicesQuery.isLoading) {
-    return <div style={{ padding: 40, textAlign: "center" }}>Loading dashboard...</div>;
-  }
-  if (categoriesQuery.isError) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "red" }}>
-        Failed to load categories. <button onClick={() => categoriesQuery.refetch()}>Retry</button>
-      </div>
-    );
-  }
-  if (servicesQuery.isError) {
-    return (
-      <div style={{ padding: 40, textAlign: "center", color: "red" }}>
-        Failed to load services. <button onClick={() => servicesQuery.refetch()}>Retry</button>
-      </div>
-    );
-  }
 
   return (
-    <div className={styles.dashboardPage}>
-      <SummaryRow
-        categories={categoriesQuery.data || []}
-        productsCount={allProductsCount}
-        services={servicesQuery.data?.services || []}
-      />
-      <div className={styles.dashboardMain}>
-        <CategoriesPanel
-          categories={categoriesQuery.data || []}
-          expanded={expandedCat}
-          onToggle={handleExpand}
-          search={catSearch}
-          setSearch={setCatSearch}
-          loading={categoriesQuery.isLoading}
-          error={categoriesQuery.isError ? categoriesQuery.error.message : null}
-          onRetry={() => categoriesQuery.refetch()}
-        />
-        <main className={styles.productsMain}>
-          {expandedCategory ? (
-            <ProductsGrid
-              category={expandedCategory}
-              productsQuery={productsQuery}
-              onRetry={() => productsQuery.refetch()}
-              search={catProductSearch[expandedCat] || ""}
-              setSearch={val => handleCatProductSearch(expandedCat, val)}
-              page={catProductPage[expandedCat] || 1}
-              setPage={val => handleCatProductPage(expandedCat, val)}
-              hasMore={
-                productsQuery.data &&
-                productsQuery.data.products.length === 8
-              }
-            />
-          ) : (
-            <div className={styles.emptyState}>
-              Select a category to view products.
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Modern Navigation */}
+      <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-2 rounded-lg">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                Electrify
+              </span>
             </div>
-          )}
-          <ServicesSection
-            servicesQuery={servicesQuery}
-            onRetry={() => servicesQuery.refetch()}
-          />
-        </main>
+            
+            <div className="hidden md:flex flex-1 max-w-2xl mx-8">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-6">
+              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition">
+                <Bell className="w-6 h-6 text-gray-600" />
+                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+              </button>
+              <button className="p-2 hover:bg-gray-100 rounded-lg transition">
+                <Heart className="w-6 h-6 text-gray-600" />
+              </button>
+              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition">
+                <ShoppingCart className="w-6 h-6 text-gray-600" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+              <button className="flex items-center space-x-2 p-2 hover:bg-gray-100 rounded-lg transition">
+                <User className="w-6 h-6 text-gray-600" />
+                <span className="hidden lg:block text-sm font-medium text-gray-700">Profile</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <div className="mb-6 md:mb-0">
+              <h1 className="text-4xl md:text-5xl font-bold mb-4">
+                Power Your Future
+              </h1>
+              <p className="text-xl text-green-50 mb-6">
+                Premium UPS systems & power solutions for your needs
+              </p>
+              <div className="flex space-x-4">
+                <button className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-50 transition transform hover:scale-105">
+                  Shop Now
+                </button>
+                <button className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition">
+                  Learn More
+                </button>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-white/10 backdrop-blur-lg p-4 rounded-lg">
+                <TrendingUp className="w-8 h-8 mb-2" />
+                <div className="text-2xl font-bold">500+</div>
+                <div className="text-sm text-green-50">Products</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-lg p-4 rounded-lg">
+                <Package className="w-8 h-8 mb-2" />
+                <div className="text-2xl font-bold">10k+</div>
+                <div className="text-sm text-green-50">Orders</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {loading && (
+        <div className="flex justify-center items-center py-20">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+        </div>
+      )}
+
+      {err && (
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+            {err}
+          </div>
+        </div>
+      )}
+
+      {!loading && !err && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Categories */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by Category</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {categories.map(cat => (
+                <button
+                  key={cat.category_id}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`p-6 rounded-xl transition transform hover:scale-105 shadow-md ${
+                    selectedCategory === cat.name
+                      ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
+                      : 'bg-white hover:shadow-lg'
+                  }`}
+                >
+                  <div className="text-3xl mb-3">⚡</div>
+                  <h3 className="font-semibold text-lg mb-1">{cat.name}</h3>
+                  <p className={`text-sm ${selectedCategory === cat.name ? 'text-green-50' : 'text-gray-600'}`}>
+                    {cat.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Products */}
+          <section className="mb-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {selectedCategory === 'all' ? 'All Products' : `${selectedCategory} Products`}
+              </h2>
+              {selectedCategory !== 'all' && (
+                <button 
+                  onClick={() => setSelectedCategory('all')}
+                  className="text-green-600 hover:text-green-700 font-medium flex items-center space-x-1"
+                >
+                  <span>Clear Filter</span>
+                  <span>×</span>
+                </button>
+              )}
+            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredProducts.map(prod => (
+                  <div key={prod.product_id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
+                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <div className="text-6xl">📦</div>
+                      <button className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition">
+                        <Heart className="w-5 h-5 text-gray-600 hover:text-red-500" />
+                      </button>
+                    </div>
+                    <div className="p-5">
+                      <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">{prod.category}</span>
+                      <h3 className="font-bold text-lg mt-2 mb-1 text-gray-900">{prod.name}</h3>
+                      <p className="text-sm text-gray-600 mb-4">{prod.description}</p>
+                      <div className="flex justify-between items-center">
+                        <span className="text-2xl font-bold text-green-600">₹{prod.price.toLocaleString()}</span>
+                        <button 
+                          onClick={() => setCartCount(c => c + 1)}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105"
+                        >
+                          Add to Cart
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <p className="text-gray-600">No products found matching your criteria.</p>
+              </div>
+            )}
+          </section>
+
+          {/* Services */}
+          <section className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-8 text-white">
+            <h2 className="text-2xl font-bold mb-6">Our Services</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {services.map(serv => (
+                <div key={serv.service_id} className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/20 transition">
+                  <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-xl mb-2">{serv.service_name}</h3>
+                  <p className="text-gray-300 mb-4">Professional service with warranty</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-green-400">₹{serv.price.toLocaleString()}</span>
+                    <button className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                      Book Now
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-gray-300 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Zap className="w-6 h-6 text-green-500" />
+                <span className="text-xl font-bold text-white">Electrify</span>
+              </div>
+              <p className="text-sm">Your trusted partner for power solutions</p>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Products</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-green-400">UPS Systems</a></li>
+                <li><a href="#" className="hover:text-green-400">Batteries</a></li>
+                <li><a href="#" className="hover:text-green-400">Inverters</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Support</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="#" className="hover:text-green-400">Contact Us</a></li>
+                <li><a href="#" className="hover:text-green-400">FAQs</a></li>
+                <li><a href="#" className="hover:text-green-400">Warranty</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-white mb-4">Newsletter</h4>
+              <p className="text-sm mb-4">Get updates on new products</p>
+              <div className="flex">
+                <input type="email" placeholder="Email" className="px-4 py-2 rounded-l-lg text-gray-900 flex-1" />
+                <button className="bg-green-600 px-4 py-2 rounded-r-lg hover:bg-green-700">→</button>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+            © 2024 Electrify. All rights reserved.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
