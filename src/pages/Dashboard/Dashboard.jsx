@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap } from 'lucide-react';
 import { getCategories, getProducts, getAvailableServices } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import Modal from '../../components/Modal/Modal';
+import ProductDetailModal from '../../components/Modal/ProductDetailModal';
+import ServiceDetailModal from '../../components/Modal/ServiceDetailModal';
 
 const Dashboard = () => {
   const { accessToken } = useAuth();
@@ -13,6 +16,10 @@ const Dashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [cartCount, setCartCount] = useState(0);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedService, setSelectedService] = useState(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -58,6 +65,28 @@ const Dashboard = () => {
     const matchesSearch = searchTerm === '' || (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
+
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setIsProductModalOpen(true);
+  };
+
+  const handleServiceClick = (service) => {
+    setSelectedService(service);
+    setIsServiceModalOpen(true);
+  };
+
+  const handleAddToCart = () => {
+    setCartCount(c => c + 1);
+    setIsProductModalOpen(false);
+    // You can add toast notification here
+  };
+
+  const handleBookService = () => {
+    setIsServiceModalOpen(false);
+    // Handle service booking logic
+    alert('Service booking request submitted!');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -214,10 +243,20 @@ const Dashboard = () => {
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredProducts.map(prod => (
-                  <div key={prod.product_id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group">
+                  <div 
+                    key={prod.product_id} 
+                    className="bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group cursor-pointer"
+                    onClick={() => handleProductClick(prod)}
+                  >
                     <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                       <div className="text-6xl">📦</div>
-                      <button className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition">
+                      <button 
+                        className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle wishlist
+                        }}
+                      >
                         <Heart className="w-5 h-5 text-gray-600 hover:text-red-500" />
                       </button>
                     </div>
@@ -228,13 +267,16 @@ const Dashboard = () => {
                         </span>
                       )}
                       <h3 className="font-bold text-lg mt-2 mb-1 text-gray-900">{prod.name || 'Unnamed Product'}</h3>
-                      <p className="text-sm text-gray-600 mb-4">{prod.description || 'No description available'}</p>
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{prod.description || 'No description available'}</p>
                       <div className="flex justify-between items-center">
                         <span className="text-2xl font-bold text-green-600">
                           ₹{prod.price ? prod.price.toLocaleString() : '0'}
                         </span>
                         <button 
-                          onClick={() => setCartCount(c => c + 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCartCount(c => c + 1);
+                          }}
                           className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105"
                         >
                           Add to Cart
@@ -257,7 +299,11 @@ const Dashboard = () => {
               <h2 className="text-2xl font-bold mb-6">Our Services</h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {services.map(serv => (
-                  <div key={serv.service_id} className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/20 transition">
+                  <div 
+                    key={serv.service_id} 
+                    className="bg-white/10 backdrop-blur-lg rounded-xl p-6 hover:bg-white/20 transition cursor-pointer transform hover:scale-105"
+                    onClick={() => handleServiceClick(serv)}
+                  >
                     <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4">
                       <Package className="w-6 h-6" />
                     </div>
@@ -267,7 +313,13 @@ const Dashboard = () => {
                       <span className="text-2xl font-bold text-green-400">
                         ₹{serv.price ? serv.price.toLocaleString() : '0'}
                       </span>
-                      <button className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleServiceClick(serv);
+                        }}
+                        className="bg-white text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition"
+                      >
                         Book Now
                       </button>
                     </div>
@@ -320,6 +372,30 @@ const Dashboard = () => {
           </div>
         </div>
       </footer>
+
+      {/* Product Detail Modal */}
+      <Modal 
+        isOpen={isProductModalOpen} 
+        onClose={() => setIsProductModalOpen(false)}
+      >
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setIsProductModalOpen(false)}
+          onAddToCart={handleAddToCart}
+        />
+      </Modal>
+
+      {/* Service Detail Modal */}
+      <Modal 
+        isOpen={isServiceModalOpen} 
+        onClose={() => setIsServiceModalOpen(false)}
+      >
+        <ServiceDetailModal
+          service={selectedService}
+          onClose={() => setIsServiceModalOpen(false)}
+          onBookService={handleBookService}
+        />
+      </Modal>
     </div>
   );
 };
