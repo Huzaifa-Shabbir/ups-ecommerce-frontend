@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap } from 'lucide-react';
 import { getCategories, getProducts, getAvailableServices } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 import Modal from '../../components/Modal/Modal';
 import ProductDetailModal from '../../components/Modal/ProductDetailModal';
 import ServiceDetailModal from '../../components/Modal/ServiceDetailModal';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { accessToken } = useAuth();
+  const { addToCart, getCartCount } = useCart();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -15,7 +19,6 @@ const Dashboard = () => {
   const [err, setErr] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [cartCount, setCartCount] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -32,18 +35,9 @@ const Dashboard = () => {
           getAvailableServices(accessToken)
         ]);
         
-        console.log('Categories Response:', catRes);
-        console.log('Products Response:', prodRes);
-        console.log('Services Response:', servRes);
-        
-        // Handle different response structures
         const categoriesData = Array.isArray(catRes) ? catRes : (catRes.categories || []);
         const productsData = Array.isArray(prodRes) ? prodRes : (prodRes.products || []);
         const servicesData = Array.isArray(servRes) ? servRes : (servRes.services || []);
-        
-        console.log('Parsed Categories:', categoriesData);
-        console.log('Parsed Products:', productsData);
-        console.log('Parsed Services:', servicesData);
         
         setCategories(categoriesData);
         setProducts(productsData);
@@ -77,20 +71,20 @@ const Dashboard = () => {
   };
 
   const handleAddToCart = () => {
-    setCartCount(c => c + 1);
-    setIsProductModalOpen(false);
-    // You can add toast notification here
+    if (selectedProduct) {
+      addToCart(selectedProduct);
+      setIsProductModalOpen(false);
+    }
   };
 
   const handleBookService = () => {
     setIsServiceModalOpen(false);
-    // Handle service booking logic
     alert('Service booking request submitted!');
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Modern Navigation */}
+      {/* Navigation */}
       <nav className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -124,11 +118,14 @@ const Dashboard = () => {
               <button className="p-2 hover:bg-gray-100 rounded-lg transition">
                 <Heart className="w-6 h-6 text-gray-600" />
               </button>
-              <button className="relative p-2 hover:bg-gray-100 rounded-lg transition">
+              <button 
+              onClick={() => navigate('/cart')}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition"
+            >
                 <ShoppingCart className="w-6 h-6 text-gray-600" />
-                {cartCount > 0 && (
+                {getCartCount() > 0 && (
                   <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {cartCount}
+                    {getCartCount()}
                   </span>
                 )}
               </button>
@@ -203,17 +200,52 @@ const Dashboard = () => {
                   <button
                     key={cat.category_id}
                     onClick={() => setSelectedCategory(cat.name)}
-                    className={`p-6 rounded-xl transition transform hover:scale-105 shadow-md ${
+                    className={`relative overflow-hidden rounded-xl transition transform hover:scale-105 shadow-md ${
                       selectedCategory === cat.name
-                        ? 'bg-gradient-to-br from-green-500 to-emerald-600 text-white'
-                        : 'bg-white hover:shadow-lg'
+                        ? 'ring-4 ring-green-500'
+                        : 'hover:shadow-lg'
                     }`}
                   >
-                    <div className="text-3xl mb-3">⚡</div>
-                    <h3 className="font-semibold text-lg mb-1">{cat.name}</h3>
-                    <p className={`text-sm ${selectedCategory === cat.name ? 'text-green-50' : 'text-gray-600'}`}>
-                      {cat.description}
-                    </p>
+                    {/* Category Image Background */}
+                    <div className="relative h-32 overflow-hidden">
+                      {cat.image ? (
+                        <img 
+                          src={cat.image} 
+                          alt={cat.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name || 'Category')}&size=300&background=random&color=fff&bold=true`;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                          <span className="text-5xl">⚡</span>
+                        </div>
+                      )}
+                      {/* Overlay */}
+                      <div className={`absolute inset-0 bg-gradient-to-t ${
+                        selectedCategory === cat.name 
+                          ? 'from-green-600/90 to-green-500/70' 
+                          : 'from-black/60 to-black/20'
+                      } transition-all`}></div>
+                    </div>
+                    
+                    {/* Category Info */}
+                    <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
+                      <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{cat.name}</h3>
+                      <p className="text-xs text-white/90 line-clamp-2 drop-shadow">
+                        {cat.description || 'Browse products'}
+                      </p>
+                    </div>
+                    
+                    {/* Selected Indicator */}
+                    {selectedCategory === cat.name && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
+                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -244,17 +276,31 @@ const Dashboard = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredProducts.map(prod => (
                   <div 
-                    key={prod.product_id} 
+                    key={prod.id || prod.product_id} 
                     className="bg-white rounded-xl shadow-md hover:shadow-xl transition transform hover:-translate-y-1 overflow-hidden group cursor-pointer"
                     onClick={() => handleProductClick(prod)}
                   >
-                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <div className="text-6xl">📦</div>
+                    <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden">
+                      {prod.image ? (
+                        <img 
+                          src={prod.image} 
+                          alt={prod.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(prod.name || 'Product')}&size=400&background=27ae60&color=fff&bold=true`;
+                          }}
+                        />
+                      ) : (
+                        <img 
+                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(prod.name || 'Product')}&size=400&background=27ae60&color=fff&bold=true`}
+                          alt={prod.name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                       <button 
                         className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle wishlist
                         }}
                       >
                         <Heart className="w-5 h-5 text-gray-600 hover:text-red-500" />
@@ -275,11 +321,14 @@ const Dashboard = () => {
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            setCartCount(c => c + 1);
+                            if ((prod.Quantity || 0) > 0) {
+                              addToCart(prod);
+                            }
                           }}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105"
+                          disabled={(prod.Quantity || 0) === 0}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                         >
-                          Add to Cart
+                          {(prod.Quantity || 0) === 0 ? 'Out of Stock' : 'Add to Cart'}
                         </button>
                       </div>
                     </div>
@@ -373,7 +422,7 @@ const Dashboard = () => {
         </div>
       </footer>
 
-      {/* Product Detail Modal */}
+      {/* Modals */}
       <Modal 
         isOpen={isProductModalOpen} 
         onClose={() => setIsProductModalOpen(false)}
@@ -385,7 +434,6 @@ const Dashboard = () => {
         />
       </Modal>
 
-      {/* Service Detail Modal */}
       <Modal 
         isOpen={isServiceModalOpen} 
         onClose={() => setIsServiceModalOpen(false)}
