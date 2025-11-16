@@ -402,7 +402,7 @@ const Dashboard = () => {
             <div>
               <h4 className="font-semibold text-white mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-green-400">Contact Us</a></li>
+                <li><a href="https://wa.me/923304325987" target="_blank" rel="noopener noreferrer" className="hover:text-green-400">Contact Us</a></li>
                 <li><a href="#" className="hover:text-green-400">FAQs</a></li>
                 <li><a href="#" className="hover:text-green-400">Warranty</a></li>
               </ul>
