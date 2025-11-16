@@ -153,7 +153,10 @@ const Dashboard = () => {
                 <button className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-50 transition transform hover:scale-105">
                   Shop Now
                 </button>
-                <button className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition">
+                <button 
+                  onClick={() => navigate('/about')}
+                  className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition"
+                >
                   Learn More
                 </button>
               </div>
@@ -195,59 +198,61 @@ const Dashboard = () => {
           <section className="mb-12">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by Category</h2>
             {categories.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {categories.map(cat => (
-                  <button
-                    key={cat.category_id}
-                    onClick={() => setSelectedCategory(cat.name)}
-                    className={`relative overflow-hidden rounded-xl transition transform hover:scale-105 shadow-md ${
-                      selectedCategory === cat.name
-                        ? 'ring-4 ring-green-500'
-                        : 'hover:shadow-lg'
-                    }`}
-                  >
-                    {/* Category Image Background */}
-                    <div className="relative h-32 overflow-hidden">
-                      {cat.image ? (
-                        <img 
-                          src={cat.image} 
-                          alt={cat.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name || 'Category')}&size=300&background=random&color=fff&bold=true`;
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                          <span className="text-5xl">⚡</span>
+              <div className="overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
+                <div className="flex space-x-4 min-w-max">
+                  {categories.map(cat => (
+                    <button
+                      key={cat.category_id}
+                      onClick={() => setSelectedCategory(cat.name)}
+                      className={`relative overflow-hidden rounded-xl transition transform hover:scale-105 shadow-md flex-shrink-0 w-64 ${
+                        selectedCategory === cat.name
+                          ? 'ring-4 ring-green-500'
+                          : 'hover:shadow-lg'
+                      }`}
+                    >
+                      {/* Category Image Background */}
+                      <div className="relative h-32 overflow-hidden">
+                        {cat.image ? (
+                          <img 
+                            src={cat.image} 
+                            alt={cat.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name || 'Category')}&size=300&background=random&color=fff&bold=true`;
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                            <span className="text-5xl">⚡</span>
+                          </div>
+                        )}
+                        {/* Overlay */}
+                        <div className={`absolute inset-0 bg-gradient-to-t ${
+                          selectedCategory === cat.name 
+                            ? 'from-green-600/90 to-green-500/70' 
+                            : 'from-black/60 to-black/20'
+                        } transition-all`}></div>
+                      </div>
+                      
+                      {/* Category Info */}
+                      <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
+                        <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{cat.name}</h3>
+                        <p className="text-xs text-white/90 line-clamp-2 drop-shadow">
+                          {cat.description || 'Browse products'}
+                        </p>
+                      </div>
+                      
+                      {/* Selected Indicator */}
+                      {selectedCategory === cat.name && (
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
+                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
                         </div>
                       )}
-                      {/* Overlay */}
-                      <div className={`absolute inset-0 bg-gradient-to-t ${
-                        selectedCategory === cat.name 
-                          ? 'from-green-600/90 to-green-500/70' 
-                          : 'from-black/60 to-black/20'
-                      } transition-all`}></div>
-                    </div>
-                    
-                    {/* Category Info */}
-                    <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
-                      <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{cat.name}</h3>
-                      <p className="text-xs text-white/90 line-clamp-2 drop-shadow">
-                        {cat.description || 'Browse products'}
-                      </p>
-                    </div>
-                    
-                    {/* Selected Indicator */}
-                    {selectedCategory === cat.name && (
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
-                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                    )}
-                  </button>
-                ))}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
