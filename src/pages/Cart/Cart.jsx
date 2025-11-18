@@ -11,8 +11,8 @@ const Cart = () => {
 
   const handleCheckout = () => {
     if (!accessToken) {
-      alert('Please login to proceed with checkout');
-      navigate('/login');
+      // Save the current path to return after login
+      navigate('/login', { state: { from: '/cart' } });
       return;
     }
     // TODO: Implement checkout functionality
@@ -213,12 +213,19 @@ const Cart = () => {
                   </div>
                 )}
 
+                {!accessToken && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-yellow-800 font-medium">
+                      🔒 Please login to proceed with checkout
+                    </p>
+                  </div>
+                )}
                 <button
                   onClick={handleCheckout}
                   className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105 flex items-center justify-center space-x-2"
                 >
                   <CreditCard className="w-5 h-5" />
-                  <span>Proceed to Checkout</span>
+                  <span>{accessToken ? 'Proceed to Checkout' : 'Login to Checkout'}</span>
                 </button>
 
                 <button
