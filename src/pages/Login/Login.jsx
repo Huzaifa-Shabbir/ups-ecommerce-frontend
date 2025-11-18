@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Zap, Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles } from 'lucide-react';
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isLoading, error, clearError, user } = useAuth();
   const [formData, setFormData] = useState({ identifier: '', password: '' });
   const [validationErrors, setValidationErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
 
+  // Get the page user came from, or default to dashboard
+  const from = location.state?.from || '/dashboard';
+
   useEffect(() => {
-    if (user) navigate('/dashboard');
-  }, [user, navigate]);
+    if (user) {
+      // Redirect to the page they came from, or dashboard
+      navigate(from, { replace: true });
+    }
+  }, [user, navigate, from]);
 
   const validateForm = () => {
     const errors = {};
@@ -34,7 +41,8 @@ const Login = () => {
     if (!validateForm()) return;
     try {
       await login(formData.identifier, formData.password);
-      navigate('/dashboard');
+      // Redirect to the page they came from, or dashboard
+      navigate(from, { replace: true });
     } catch {
       // error handled by context
     }

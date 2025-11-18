@@ -4,8 +4,17 @@ const AuthContext = createContext(undefined);
 
 const API_AUTH_BASE = 'http://localhost:4000/api/auth';
 
+const getStoredUser = () => {
+  try {
+    const stored = localStorage.getItem('user');
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getStoredUser);
   const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -24,29 +33,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const refreshAccessToken = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_AUTH_BASE}/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        throw new Error(`Refresh failed (status ${res.status})`);
-      }
-
-      const data = await parseResponse(res);
-      setAccessToken(data.accessToken);
-      localStorage.setItem('accessToken', data.accessToken);
-      return data.accessToken;
-    } catch (err) {
-      setAccessToken(null);
-      setUser(null);
-      localStorage.removeItem('accessToken');
-      throw err;
-    }
-  }, []);
-
   const login = useCallback(async (identifier, password) => {
     setIsLoading(true);
     setError(null);
@@ -64,9 +50,22 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await parseResponse(res);
-      setAccessToken(data.accessToken);
-      localStorage.setItem('accessToken', data.accessToken);
-      setUser(data.user);
+      const authToken = data.token;
+      const userData = data.user || null;
+
+      if (!authToken) {
+        throw new Error('Invalid login response: missing token');
+      }
+
+      setAccessToken(authToken);
+      localStorage.setItem('accessToken', authToken);
+
+      setUser(userData);
+      if (userData) {
+        localStorage.setItem('user', JSON.stringify(userData));
+      } else {
+        localStorage.removeItem('user');
+      }
     } catch (err) {
       setError(err.message || 'Login failed');
       throw err;
@@ -91,7 +90,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await parseResponse(res);
-      setUser(data.user);
       return data;
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -111,11 +109,12 @@ export const AuthProvider = ({ children }) => {
       setAccessToken(null);
       setUser(null);
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('user');
     }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, error, login, register, logout, clearError, refreshAccessToken }}>
+    <AuthContext.Provider value={{ user, accessToken, isLoading, error, login, register, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );
