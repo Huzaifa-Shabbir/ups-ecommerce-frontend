@@ -106,7 +106,7 @@ const Dashboard = () => {
         alert('Profile page coming soon!');
         break;
       case 'orders':
-        alert('Orders page coming soon!');
+        navigate('/orders');
         break;
       case 'password':
         alert('Change password feature coming soon!');

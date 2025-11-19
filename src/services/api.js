@@ -375,6 +375,35 @@ export const deleteFeedback = async (id, token) => {
   return handleResponse(response);
 };
 
+// Addresses API
+export const getAddressesByCustomer = async (userId, token = null) => {
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/addresses/${userId}`, { headers });
+  const data = await handleResponse(response);
+  if (Array.isArray(data)) return data;
+  return data.addresses || [];
+};
+
+export const createAddress = async (addressData, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/addresses`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(addressData)
+  });
+  return handleResponse(response);
+};
+
 // Export all as default object for easier imports
 export default {
   // Categories
@@ -421,5 +450,9 @@ export default {
   createFeedback,
   getFeedbackByCustomer,
   getFeedbackForOrder,
-  deleteFeedback
+  deleteFeedback,
+  
+  // Addresses
+  getAddressesByCustomer,
+  createAddress
 };

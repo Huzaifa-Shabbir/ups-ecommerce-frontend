@@ -6,6 +6,7 @@ import Register from './pages/Register/Register';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Cart from './pages/Cart/Cart';
 import About from './pages/About/About';
+import Orders from './pages/Orders/Orders';
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/about" element={<About />} />
+            <Route path="/orders" element={<Orders />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Router>
