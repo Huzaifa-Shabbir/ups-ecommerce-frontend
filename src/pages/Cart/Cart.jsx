@@ -87,7 +87,7 @@ const Cart = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <TopBar title="Shopping Cart" subtitle="Review items and place your order" showSearch={false} />
+      <TopBar brandVariant="dashboard" />
       <header className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
@@ -95,12 +95,6 @@ const Cart = () => {
             <h1 className="text-4xl font-bold">Your Cart</h1>
             <p className="text-green-50 mt-2">Secure checkout with premium UPS systems and accessories.</p>
           </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center justify-center px-5 py-3 rounded-xl border border-white/40 text-white font-semibold hover:bg-white/10 transition"
-          >
-            Continue Shopping
-          </button>
         </div>
       </header>
 
