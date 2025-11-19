@@ -18,8 +18,12 @@ import {
   getAddressesByCustomer,
   getFeedbackByCustomer,
   getFeedbackForOrder,
-  createFeedback
+  createFeedback,
+  getProductById // <-- added
 } from '../../services/api';
+import TopBar from '../../components/Layout/TopBar';
+import Modal from '../../components/Modal/Modal'; // <-- added
+import ProductDetailModal from '../../components/Modal/ProductDetailModal'; // <-- added
 
 const Orders = () => {
   const navigate = useNavigate();
@@ -36,6 +40,9 @@ const Orders = () => {
   const [addressSubmitting, setAddressSubmitting] = useState(false);
   const [feedbackForms, setFeedbackForms] = useState({});
   const [feedbackSubmitting, setFeedbackSubmitting] = useState({});
+  // Added state for product modal
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   useEffect(() => {
     if (!user || !accessToken) {
@@ -168,39 +175,100 @@ const Orders = () => {
     }
   };
 
+  // --------------------
+  // helper: normalize product data from order item
+  const normalizeProductFromItem = (item) => {
+    const embedded = item.product || item.product_data || item.productDetails || {};
+    const id = embedded.product_id || embedded.id || item.product_id || item.productId || null;
+    const name = embedded.name || item.name || item.product_name || `Product ${id || ''}`.trim();
+    const imgSrc = embedded.image || embedded.img || item.image || item.product_image || null;
+    const unitPrice = (embedded.price ?? item.price ?? item.unit_price ?? 0);
+    const qty = item.quantity ?? item.qty ?? item.order_quantity ?? item.qty_order ?? 1;
+    const stock = (embedded.Quantity ?? embedded.quantity ?? embedded.stock ?? item.Quantity ?? 0);
+    const description = embedded.description || item.description || '';
+    const category = embedded.category || item.category || null;
+    return { id, name, imgSrc, unitPrice, qty, stock, description, category, raw: embedded };
+  };
+
+  // Improved: open product modal (prefer embedded product, otherwise fetch by id)
+  const openProductFromItem = async (item) => {
+    const norm = normalizeProductFromItem(item);
+
+    // If embedded product has meaningful data, use it
+    if (norm.raw && (norm.raw.name || norm.raw.id || norm.raw.product_id)) {
+      // ensure shape matches ProductDetailModal expectations
+      setSelectedProduct({
+        id: norm.id,
+        name: norm.name,
+        image: norm.imgSrc,
+        price: norm.unitPrice,
+        description: norm.description,
+        category: norm.category,
+        Quantity: norm.stock
+      });
+      setIsProductModalOpen(true);
+      return;
+    }
+
+    // Otherwise try to fetch by id
+    if (norm.id) {
+      try {
+        const resp = await getProductById(norm.id, accessToken);
+        const product = resp?.product || resp || null;
+        if (product) {
+          // normalize fetched product fields
+          setSelectedProduct({
+            id: product.product_id || product.id,
+            name: product.name || norm.name,
+            image: product.image || norm.imgSrc,
+            price: product.price ?? norm.unitPrice,
+            description: product.description || norm.description,
+            category: product.category || norm.category,
+            Quantity: product.Quantity ?? product.quantity ?? product.stock ?? norm.stock
+          });
+          setIsProductModalOpen(true);
+          return;
+        }
+      } catch (err) {
+        console.warn('getProductById failed', err);
+      }
+    }
+
+    // final fallback
+    setSelectedProduct({
+      id: norm.id,
+      name: norm.name,
+      image: norm.imgSrc,
+      price: norm.unitPrice,
+      description: norm.description,
+      category: norm.category,
+      Quantity: norm.stock
+    });
+    setIsProductModalOpen(true);
+  };
+
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col justify-center items-center p-6 text-center">
-        <Package className="w-16 h-16 text-green-600 mb-4" />
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Please log in to view your orders</h2>
-        <p className="text-gray-600 mb-6">Access your order history, manage addresses, and leave feedback.</p>
-        <button
-          onClick={() => navigate('/login')}
-          className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
-        >
-          Login to Continue
-        </button>
+      <div className="min-h-screen bg-gray-50">
+        <TopBar brandVariant="dashboard" />
+        <div className="flex flex-col justify-center items-center text-center py-24 px-6">
+          <Package className="w-16 h-16 text-green-600 mb-4" />
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Please log in to view your orders</h2>
+          <p className="text-gray-600 mb-6">Access your order history, manage addresses, and leave feedback.</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition"
+          >
+            Login to Continue
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Your Orders & Addresses</h1>
-            <p className="text-gray-600">Manage everything related to your purchases in one place.</p>
-          </div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            className="px-4 py-2 text-sm font-semibold text-green-600 border border-green-200 rounded-lg hover:bg-green-50"
-          >
-            Back to Dashboard
-          </button>
-        </div>
-      </div>
-
+    <div className="min-h-screen bg-gray-50">
+      <TopBar brandVariant="dashboard" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-start space-x-3">
@@ -354,18 +422,58 @@ const Orders = () => {
                               <CheckCircle className="w-5 h-5 text-green-600" />
                               <span>Items</span>
                             </h4>
+
                             <div className="space-y-3">
-                              {(order.items || []).map((item, idx) => (
-                                <div
-                                  key={`${item.order_item_id || idx}-${item.product_id}`}
-                                  className="flex justify-between text-sm text-gray-700"
-                                >
-                                  <span>
-                                    Product #{item.product_id} • Qty: {item.quantity}
-                                  </span>
-                                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                                </div>
-                              ))}
+                              {/* Updated: show full clickable item bar for each item */}
+                              {(order.items || []).map((item, idx) => {
+                                const p = normalizeProductFromItem(item);
+                                return (
+                                  <button
+                                    key={`${item.order_item_id || idx}-${p.id || p.name}`}
+                                    onClick={(e) => { e.preventDefault(); openProductFromItem(item); }}
+                                    className="w-full flex items-center gap-4 p-3 border border-gray-100 rounded-lg hover:shadow-sm transition text-left"
+                                  >
+                                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+                                      {p.imgSrc ? (
+                                        <img
+                                          src={p.imgSrc}
+                                          alt={p.name}
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&size=200&background=27ae60&color=fff&bold=true`;
+                                          }}
+                                        />
+                                      ) : (
+                                        <img
+                                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&size=200&background=27ae60&color=fff&bold=true`}
+                                          alt={p.name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      )}
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex justify-between items-start gap-4">
+                                        <div className="min-w-0">
+                                          <p className="text-sm text-gray-500">
+                                            {typeof item.category === 'object' ? item.category?.name : (item.category || p.category || '')}
+                                          </p>
+                                          <h5 className="text-md font-semibold text-gray-900 truncate">{p.name}</h5>
+                                          {(item.description || p.description) && <p className="text-xs text-gray-500 truncate">{item.description || p.description}</p>}
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-sm text-gray-500">Qty: <span className="font-medium text-gray-900">{p.qty}</span></p>
+                                          <p className="text-sm text-gray-500">₹{p.unitPrice.toLocaleString()}</p>
+                                          <p className="text-lg font-bold text-green-600">₹{(p.unitPrice * p.qty).toFixed(2)}</p>
+                                          <p className={`text-xs mt-1 ${p.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {p.stock > 0 ? `${p.stock} units in stock` : 'Out of stock'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
 
@@ -473,6 +581,18 @@ const Orders = () => {
           </>
         )}
       </div>
+
+      {/* Product modal */}
+      <Modal isOpen={isProductModalOpen} onClose={() => { setIsProductModalOpen(false); setSelectedProduct(null); }}>
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => { setIsProductModalOpen(false); setSelectedProduct(null); }}
+          onAddToCart={() => {
+            // product modal's add to cart behavior already exists elsewhere; user can close modal after add.
+            setIsProductModalOpen(false);
+          }}
+        />
+      </Modal>
     </div>
   );
 };
