@@ -7,6 +7,9 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
     ? product.category?.name 
     : product.category;
 
+  // Prefer several possible fields for stock/quantity
+  const displayStock = product.Quantity ?? product.quantity ?? product.stock ?? 0;
+
   return (
     <>
       <div className="grid md:grid-cols-2 gap-8">
@@ -56,8 +59,8 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
           {/* Stock Status */}
           <div className="flex items-center space-x-2">
             <Package className="w-5 h-5 text-gray-600" />
-            <span className={`text-sm font-medium ${(product.Quantity || 0) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {(product.Quantity || 0) > 0 ? `${product.Quantity} units in stock` : 'Out of stock'}
+            <span className={`text-sm font-medium ${displayStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {displayStock > 0 ? `${displayStock} units in stock` : 'Out of stock'}
             </span>
           </div>
 
@@ -75,11 +78,11 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
           <div className="flex space-x-3 pt-4">
             <button
               onClick={onAddToCart}
-              disabled={(product.Quantity || 0) === 0}
+              disabled={displayStock === 0}
               className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               <ShoppingCart className="w-5 h-5" />
-              <span>{(product.Quantity || 0) === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+              <span>{displayStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
             </button>
             <button className="p-4 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition">
               <Heart className="w-6 h-6 text-gray-600 hover:text-red-500" />
