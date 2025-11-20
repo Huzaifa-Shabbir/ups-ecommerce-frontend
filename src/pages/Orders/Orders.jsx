@@ -43,6 +43,8 @@ const Orders = () => {
   // Added state for product modal
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  // State to store enriched product data for order items
+  const [enrichedProducts, setEnrichedProducts] = useState({});
 
   useEffect(() => {
     if (!user || !accessToken) {
@@ -115,16 +117,72 @@ const Orders = () => {
       }
     }
 
-    // Optionally refresh order details
+    // Optionally refresh order details and fetch product data
+    let currentOrder = orders.find((o) => o.order_id === orderId);
+    
     try {
       const orderDetail = await getOrderById(orderId, accessToken);
       if (orderDetail?.order) {
         setOrders((prev) =>
           prev.map((order) => (order.order_id === orderId ? { ...order, ...orderDetail.order } : order))
         );
+        // Merge the fetched order detail with current order
+        currentOrder = { ...currentOrder, ...orderDetail.order };
       }
     } catch (err) {
       console.warn('Failed to refresh order details', err);
+    }
+
+    // Fetch product data for items that don't have complete embedded data
+    if (currentOrder?.items) {
+      const itemsToEnrich = [];
+      currentOrder.items.forEach((item, idx) => {
+        const norm = normalizeProductFromItem(item);
+        // Check if product data is incomplete (missing name or image)
+        if (!norm.name || norm.name.startsWith('Product ') || !norm.imgSrc) {
+          if (norm.id) {
+            itemsToEnrich.push({ item, idx, productId: norm.id });
+          }
+        }
+      });
+
+      // Fetch product data for items that need enrichment
+      if (itemsToEnrich.length > 0) {
+        const enrichmentPromises = itemsToEnrich.map(async ({ item, idx, productId }) => {
+          try {
+            const resp = await getProductById(productId, accessToken);
+            const product = resp?.product || resp || null;
+            if (product) {
+              return {
+                orderId,
+                itemIdx: idx,
+                enrichedData: {
+                  id: product.product_id || product.id,
+                  name: product.name,
+                  image: product.image,
+                  price: product.price,
+                  description: product.description,
+                  category: product.category,
+                  Quantity: product.Quantity ?? product.quantity ?? product.stock ?? 0
+                }
+              };
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch product ${productId} for order item`, err);
+          }
+          return null;
+        });
+
+        const enrichedResults = await Promise.all(enrichmentPromises);
+        const enrichedMap = {};
+        enrichedResults.forEach((result) => {
+          if (result) {
+            const key = `${result.orderId}-${result.itemIdx}`;
+            enrichedMap[key] = result.enrichedData;
+          }
+        });
+        setEnrichedProducts((prev) => ({ ...prev, ...enrichedMap }));
+      }
     }
   };
 
@@ -427,26 +485,37 @@ const Orders = () => {
                               {/* Updated: show full clickable item bar for each item */}
                               {(order.items || []).map((item, idx) => {
                                 const p = normalizeProductFromItem(item);
+                                // Check if we have enriched product data for this item
+                                const enrichedKey = `${order.order_id}-${idx}`;
+                                const enriched = enrichedProducts[enrichedKey];
+                                
+                                // Use enriched data if available, otherwise use normalized data
+                                const displayName = enriched?.name || p.name;
+                                const displayImg = enriched?.image || p.imgSrc;
+                                const displayCategory = enriched?.category || (typeof item.category === 'object' ? item.category?.name : (item.category || p.category || ''));
+                                const displayDescription = enriched?.description || item.description || p.description;
+                                const displayStock = enriched?.Quantity ?? p.stock;
+                                
                                 return (
                                   <button
-                                    key={`${item.order_item_id || idx}-${p.id || p.name}`}
+                                    key={`${item.order_item_id || idx}-${p.id || displayName}`}
                                     onClick={(e) => { e.preventDefault(); openProductFromItem(item); }}
                                     className="w-full flex items-center gap-4 p-3 border border-gray-100 rounded-lg hover:shadow-sm transition text-left"
                                   >
                                     <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                                      {p.imgSrc ? (
+                                      {displayImg ? (
                                         <img
-                                          src={p.imgSrc}
-                                          alt={p.name}
+                                          src={displayImg}
+                                          alt={displayName}
                                           className="w-full h-full object-cover"
                                           onError={(e) => {
-                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&size=200&background=27ae60&color=fff&bold=true`;
+                                            e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=200&background=27ae60&color=fff&bold=true`;
                                           }}
                                         />
                                       ) : (
                                         <img
-                                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&size=200&background=27ae60&color=fff&bold=true`}
-                                          alt={p.name}
+                                          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=200&background=27ae60&color=fff&bold=true`}
+                                          alt={displayName}
                                           className="w-full h-full object-cover"
                                         />
                                       )}
@@ -455,18 +524,20 @@ const Orders = () => {
                                     <div className="flex-1 min-w-0">
                                       <div className="flex justify-between items-start gap-4">
                                         <div className="min-w-0">
-                                          <p className="text-sm text-gray-500">
-                                            {typeof item.category === 'object' ? item.category?.name : (item.category || p.category || '')}
-                                          </p>
-                                          <h5 className="text-md font-semibold text-gray-900 truncate">{p.name}</h5>
-                                          {(item.description || p.description) && <p className="text-xs text-gray-500 truncate">{item.description || p.description}</p>}
+                                          {displayCategory && (
+                                            <p className="text-sm text-gray-500">
+                                              {typeof displayCategory === 'object' ? displayCategory?.name : displayCategory}
+                                            </p>
+                                          )}
+                                          <h5 className="text-md font-semibold text-gray-900 truncate">{displayName}</h5>
+                                          {displayDescription && <p className="text-xs text-gray-500 truncate">{displayDescription}</p>}
                                         </div>
                                         <div className="text-right">
                                           <p className="text-sm text-gray-500">Qty: <span className="font-medium text-gray-900">{p.qty}</span></p>
                                           <p className="text-sm text-gray-500">₹{p.unitPrice.toLocaleString()}</p>
                                           <p className="text-lg font-bold text-green-600">₹{(p.unitPrice * p.qty).toFixed(2)}</p>
-                                          <p className={`text-xs mt-1 ${p.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                            {p.stock > 0 ? `${p.stock} units in stock` : 'Out of stock'}
+                                          <p className={`text-xs mt-1 ${displayStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {displayStock > 0 ? `${displayStock} units in stock` : 'Out of stock'}
                                           </p>
                                         </div>
                                       </div>
