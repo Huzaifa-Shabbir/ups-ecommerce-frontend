@@ -4,6 +4,7 @@ import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap
 import { getCategories, getProducts, getAvailableServices } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useFavourites } from '../../context/FavouritesContext';
 import Modal from '../../components/Modal/Modal';
 import ProductDetailModal from '../../components/Modal/ProductDetailModal';
 import ServiceDetailModal from '../../components/Modal/ServiceDetailModal';
@@ -13,6 +14,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { accessToken, logout } = useAuth();
   const { addToCart, getCartCount } = useCart();
+  const { isFavourite, toggleFavouriteProduct } = useFavourites();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -110,7 +112,7 @@ const Dashboard = () => {
         navigate('/orders');
         break;
       case 'password':
-        alert('Change password feature coming soon!');
+        navigate('/change-password');
         break;
       default:
         break;
@@ -297,12 +299,30 @@ const Dashboard = () => {
                         />
                       )}
                       <button 
-                        className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition"
-                        onClick={(e) => {
+                        className={`absolute top-4 right-4 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition ${
+                          isFavourite(prod.id || prod.product_id) ? 'opacity-100' : ''
+                        }`}
+                        onClick={async (e) => {
                           e.stopPropagation();
+                          const productId = prod.product_id || prod.id;
+                          if (!productId) {
+                            console.error('Product ID not found:', prod);
+                            return;
+                          }
+                          try {
+                            await toggleFavouriteProduct(productId);
+                          } catch (err) {
+                            console.error('Failed to toggle favourite', err);
+                          }
                         }}
                       >
-                        <Heart className="w-5 h-5 text-gray-600 hover:text-red-500" />
+                        <Heart 
+                          className={`w-5 h-5 transition ${
+                            isFavourite(prod.product_id || prod.id) 
+                              ? 'text-red-500 fill-red-500' 
+                              : 'text-gray-600 hover:text-red-500'
+                          }`} 
+                        />
                       </button>
                     </div>
                     <div className="p-5">
