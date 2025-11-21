@@ -50,7 +50,7 @@ const Orders = () => {
   const [enrichedProducts, setEnrichedProducts] = useState({});
 
   useEffect(() => {
-    if (!user || !accessToken) {
+    if (!user) {
       setLoading(false);
       return;
     }
