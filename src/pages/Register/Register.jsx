@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Zap, Mail, Lock, Eye, EyeOff, User as UserIcon, ArrowRight, CheckCircle } from 'lucide-react';
+import { Zap, Mail, Lock, Eye, EyeOff, User as UserIcon, ArrowRight, CheckCircle, Phone } from 'lucide-react';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register, isLoading, error, clearError, user } = useAuth();
   const [formData, setFormData] = useState({ 
+    name: '',
     email: '', 
     username: '', 
     password: '', 
-    confirmPassword: '' 
+    confirmPassword: '',
+    phone_Number: ''
   });
   const [validationErrors, setValidationErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +37,7 @@ const Register = () => {
 
   const validateForm = () => {
     const errors = {};
+    if (!formData.name) errors.name = 'Name is required';
     if (!formData.email) errors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format';
     if (!formData.username) errors.username = 'Username is required';
@@ -42,6 +45,8 @@ const Register = () => {
     if (!formData.password) errors.password = 'Password is required';
     else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
+    if (!formData.phone_Number) errors.phone_Number = 'Phone number is required';
+    else if (!/^\d+$/.test(formData.phone_Number)) errors.phone_Number = 'Phone number must contain only digits';
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -57,7 +62,13 @@ const Register = () => {
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      await register(formData.email, formData.username, formData.password);
+      await register(
+        formData.name,
+        formData.email, 
+        formData.username, 
+        formData.password,
+        parseInt(formData.phone_Number, 10)
+      );
       navigate('/login');
     } catch {
       // handled in context
@@ -155,6 +166,30 @@ const Register = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name Input */}
+              <div>
+                <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <UserIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="name"
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition ${
+                      validationErrors.name ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                {validationErrors.name && (
+                  <p className="mt-2 text-sm text-red-600">{validationErrors.name}</p>
+                )}
+              </div>
+
               {/* Email Input */}
               <div>
                 <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -200,6 +235,30 @@ const Register = () => {
                 </div>
                 {validationErrors.username && (
                   <p className="mt-2 text-sm text-red-600">{validationErrors.username}</p>
+                )}
+              </div>
+
+              {/* Phone Number Input */}
+              <div>
+                <label htmlFor="phone_Number" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="phone_Number"
+                    type="text"
+                    name="phone_Number"
+                    value={formData.phone_Number}
+                    onChange={handleChange}
+                    className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition ${
+                      validationErrors.phone_Number ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                    placeholder="923001234567"
+                  />
+                </div>
+                {validationErrors.phone_Number && (
+                  <p className="mt-2 text-sm text-red-600">{validationErrors.phone_Number}</p>
                 )}
               </div>
 
