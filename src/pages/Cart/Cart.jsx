@@ -9,7 +9,7 @@ import TopBar from '../../components/Layout/TopBar';
 const Cart = () => {
   const navigate = useNavigate();
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getCartCount } = useCart();
-  const { accessToken, user } = useAuth();
+  const { user, accessToken } = useAuth();
   const [addresses, setAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -22,7 +22,7 @@ const Cart = () => {
 
   useEffect(() => {
     const fetchAddresses = async () => {
-      if (!user || !accessToken) return;
+      if (!user) return;
       setAddressesLoading(true);
       setCheckoutError(null);
       try {
@@ -38,15 +38,10 @@ const Cart = () => {
       }
     };
     fetchAddresses();
-  }, [user, accessToken]);
+  }, [user]);
 
   const handleCheckout = async () => {
-    if (!accessToken) {
-      navigate('/login', { state: { from: '/cart' } });
-      return;
-    }
     if (!user) {
-      setCheckoutError('Please login again to continue.');
       navigate('/login', { state: { from: '/cart' } });
       return;
     }
@@ -74,7 +69,7 @@ const Cart = () => {
           quantity: item.quantity
         }))
       };
-      await createOrder(payload, accessToken);
+      await createOrder(payload, accessToken || '');
       clearCart();
       navigate('/orders');
     } catch (err) {
@@ -254,7 +249,7 @@ const Cart = () => {
                   </div>
                 )}
 
-                {accessToken && (
+                {user && (
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-semibold text-gray-900 flex items-center space-x-2">
@@ -316,7 +311,7 @@ const Cart = () => {
                   </div>
                 )}
 
-                {!accessToken && (
+                {!user && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800 font-medium">🔒 Please login to proceed with checkout</p>
                   </div>
@@ -324,7 +319,7 @@ const Cart = () => {
 
                 <button
                   onClick={handleCheckout}
-                  disabled={orderSubmitting}
+                  disabled={orderSubmitting || !user}
                   className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105 flex items-center justify-center space-x-2 disabled:opacity-60"
                 >
                   {orderSubmitting ? (
@@ -335,7 +330,7 @@ const Cart = () => {
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
-                      <span>{accessToken ? 'Place Order' : 'Login to Checkout'}</span>
+                      <span>{user ? 'Place Order' : 'Login to Checkout'}</span>
                     </>
                   )}
                 </button>
