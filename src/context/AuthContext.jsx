@@ -7,15 +7,21 @@ const API_AUTH_BASE = 'http://localhost:4000/api/auth';
 const getStoredUser = () => {
   try {
     const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    const user = JSON.parse(stored);
+    // Normalize user_Id to user_id for consistency
+    if (user && user.user_Id && !user.user_id) {
+      user.user_id = user.user_Id;
+    }
+    return user;
   } catch {
     return null;
   }
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(getStoredUser);
-  const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken'));
+  const [user, setUser] = useState(() => getStoredUser());
+  const [accessToken, setAccessToken] = useState(() => localStorage.getItem('accessToken'));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -33,15 +39,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const login = useCallback(async (identifier, password) => {
+  const login = useCallback(async (email, password) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_AUTH_BASE}/login`, {
+      const res = await fetch(`${API_AUTH_BASE}/login/customer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // receive refresh token cookie
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
@@ -50,15 +56,34 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await parseResponse(res);
-      const authToken = data.token;
-      const userData = data.user || null;
-
-      if (!authToken) {
-        throw new Error('Invalid login response: missing token');
+      
+      if (!data.success || !data.user) {
+        throw new Error('Invalid login response: missing user data');
       }
 
-      setAccessToken(authToken);
-      localStorage.setItem('accessToken', authToken);
+      // Normalize user_Id to user_id for consistency
+      const userData = data.user;
+      if (userData.user_Id) {
+        userData.user_id = userData.user_Id;
+      }
+
+      // Note: The new API doesn't return a token in the response
+      // Token might be in cookies, headers, or handled via sessions
+      // Check for token in response or cookies
+      const authToken = data.token || data.accessToken || null;
+      
+      // If no token in response, try to get from response headers
+      if (!authToken) {
+        const tokenHeader = res.headers.get('Authorization') || res.headers.get('X-Auth-Token');
+        if (tokenHeader) {
+          const token = tokenHeader.replace('Bearer ', '');
+          setAccessToken(token);
+          localStorage.setItem('accessToken', token);
+        }
+      } else {
+        setAccessToken(authToken);
+        localStorage.setItem('accessToken', authToken);
+      }
 
       setUser(userData);
       if (userData) {
@@ -74,14 +99,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const register = useCallback(async (email, username, password) => {
+  const register = useCallback(async (name, email, username, password, phone_Number) => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_AUTH_BASE}/signup`, {
+      const res = await fetch('http://localhost:4000/api/customer/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password }),
+        body: JSON.stringify({ name, email, username, password, phone_Number }),
       });
 
       if (!res.ok) {
@@ -90,9 +115,40 @@ export const AuthProvider = ({ children }) => {
       }
 
       const data = await parseResponse(res);
+      
+      // Normalize user_Id to user_id if customer data exists
+      if (data.customer && data.customer.user_Id) {
+        data.customer.user_id = data.customer.user_Id;
+      }
+      
       return data;
     } catch (err) {
       setError(err.message || 'Registration failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const resetPassword = useCallback(async (email, new_password) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_AUTH_BASE}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, new_password }),
+      });
+
+      if (!res.ok) {
+        const payload = await (res.headers.get('content-type')?.includes('application/json') ? res.json() : Promise.resolve({ message: `Password reset failed (status ${res.status})` }));
+        throw new Error(payload.message || `Password reset failed (status ${res.status})`);
+      }
+
+      const data = await parseResponse(res);
+      return data;
+    } catch (err) {
+      setError(err.message || 'Password reset failed');
       throw err;
     } finally {
       setIsLoading(false);
@@ -114,7 +170,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, error, login, register, logout, clearError }}>
+    <AuthContext.Provider value={{ user, accessToken, isLoading, error, login, register, resetPassword, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );
