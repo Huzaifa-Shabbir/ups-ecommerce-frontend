@@ -3,8 +3,16 @@ const API_BASE_URL = "http://localhost:4000/api";
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.message || `API Error: ${response.status}`);
+    let errorData = {};
+    try {
+      errorData = await response.json();
+    } catch {
+      // If response is not JSON, try to get text
+      const text = await response.text().catch(() => '');
+      errorData = { message: text || `API Error: ${response.status}` };
+    }
+    const errorMessage = errorData.message || errorData.error || `API Error: ${response.status}`;
+    throw new Error(errorMessage);
   }
   return response.json();
 };
@@ -215,11 +223,14 @@ export const createOrder = async (orderData, token) => {
   return handleResponse(response);
 };
 
-export const getOrdersByCustomer = async (customerId, token) => {
+export const getOrdersByCustomer = async (customerId, token = null) => {
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   const response = await fetch(`${API_BASE_URL}/orders/customer/${customerId}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   });
   const data = await handleResponse(response);
   return Array.isArray(data) ? data : (data.orders || []);
@@ -404,6 +415,49 @@ export const createAddress = async (addressData, token = null) => {
   return handleResponse(response);
 };
 
+// Favourites API
+export const getFavouritesByUser = async (userId, token = null) => {
+  const headers = {};
+  // Only add Authorization header if token is provided and not empty
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/favourites/${userId}`, { headers });
+  const data = await handleResponse(response);
+  // API returns { favourites: [...] }, extract the array
+  return Array.isArray(data) ? data : (data.favourites || []);
+};
+
+export const toggleFavourite = async (userId, productId, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  // Only add Authorization header if token is provided and not empty
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Ensure productId is a number (API expects number, not string)
+  // API expects: { "productId": 2 } (camelCase with capital I)
+  const productIdNum = typeof productId === 'string' ? parseInt(productId, 10) : Number(productId);
+  
+  if (isNaN(productIdNum) || productIdNum <= 0) {
+    throw new Error('Invalid product ID');
+  }
+
+  // Prepare request body exactly as API expects: { "productId": number }
+  const requestBody = { productId: productIdNum };
+
+  const response = await fetch(`${API_BASE_URL}/favourites/${userId}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody)
+  });
+  
+  return handleResponse(response);
+};
+
 // Export all as default object for easier imports
 export default {
   // Categories
@@ -454,5 +508,9 @@ export default {
   
   // Addresses
   getAddressesByCustomer,
-  createAddress
+  createAddress,
+  
+  // Favourites
+  getFavouritesByUser,
+  toggleFavourite
 };
