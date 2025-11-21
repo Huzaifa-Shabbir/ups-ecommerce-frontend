@@ -8,7 +8,8 @@ import {
   Star,
   PlusCircle,
   MessageCircle,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -19,6 +20,7 @@ import {
   getFeedbackByCustomer,
   getFeedbackForOrder,
   createFeedback,
+  deleteFeedback,
   getProductById // <-- added
 } from '../../services/api';
 import TopBar from '../../components/Layout/TopBar';
@@ -40,6 +42,7 @@ const Orders = () => {
   const [addressSubmitting, setAddressSubmitting] = useState(false);
   const [feedbackForms, setFeedbackForms] = useState({});
   const [feedbackSubmitting, setFeedbackSubmitting] = useState({});
+  const [feedbackDeleting, setFeedbackDeleting] = useState({});
   // Added state for product modal
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -230,6 +233,38 @@ const Orders = () => {
       setError(err.message || 'Failed to submit feedback');
     } finally {
       setFeedbackSubmitting((prev) => ({ ...prev, [orderId]: false }));
+    }
+  };
+
+  const handleDeleteFeedback = async (feedbackId, orderId = null) => {
+    if (!user) return;
+    if (!window.confirm('Are you sure you want to delete this feedback?')) {
+      return;
+    }
+
+    setFeedbackDeleting((prev) => ({ ...prev, [feedbackId]: true }));
+    setError(null);
+    try {
+      await deleteFeedback(feedbackId, accessToken);
+      
+      // Update feedback by order if orderId is provided
+      if (orderId) {
+        const feedbackRes = await getFeedbackForOrder(orderId, accessToken);
+        const feedbackData = Array.isArray(feedbackRes) ? feedbackRes : (feedbackRes.feedback || []);
+        setFeedbackByOrder((prev) => ({ ...prev, [orderId]: feedbackData }));
+      }
+      
+      // Update customer feedback list
+      const customerFeedbackRes = await getFeedbackByCustomer(user.user_id, accessToken);
+      const customerFeedbackData = Array.isArray(customerFeedbackRes)
+        ? customerFeedbackRes
+        : (customerFeedbackRes.feedback || []);
+      setCustomerFeedback(customerFeedbackData);
+    } catch (err) {
+      console.error('Failed to delete feedback', err);
+      setError(err.message || 'Failed to delete feedback');
+    } finally {
+      setFeedbackDeleting((prev) => ({ ...prev, [feedbackId]: false }));
     }
   };
 
@@ -559,11 +594,25 @@ const Orders = () => {
                                 <div className="space-y-3">
                                   {feedbackByOrder[order.order_id].map((fb) => (
                                     <div key={fb.feedback_id} className="p-3 bg-white rounded-lg border border-gray-200">
-                                      <div className="flex items-center justify-between text-sm text-gray-500">
-                                        <span>
-                                          <Star className="inline w-4 h-4 text-yellow-500" /> {fb.rating}/5
-                                        </span>
-                                        <span>{new Date(fb.created_at).toLocaleDateString()}</span>
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between text-sm text-gray-500 flex-1">
+                                          <span>
+                                            <Star className="inline w-4 h-4 text-yellow-500" /> {fb.rating}/5
+                                          </span>
+                                          <span>{new Date(fb.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <button
+                                          onClick={() => handleDeleteFeedback(fb.feedback_id, order.order_id)}
+                                          disabled={feedbackDeleting[fb.feedback_id]}
+                                          className="ml-3 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                                          title="Delete feedback"
+                                        >
+                                          {feedbackDeleting[fb.feedback_id] ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <Trash2 className="w-4 h-4" />
+                                          )}
+                                        </button>
                                       </div>
                                       <p className="text-gray-700 mt-1">{fb.feedback_message}</p>
                                     </div>
@@ -630,7 +679,19 @@ const Orders = () => {
               ) : (
                 <div className="grid md:grid-cols-2 gap-4">
                   {customerFeedback.map((fb) => (
-                    <div key={fb.feedback_id} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                    <div key={fb.feedback_id} className="border border-gray-200 rounded-xl p-4 bg-gray-50 relative">
+                      <button
+                        onClick={() => handleDeleteFeedback(fb.feedback_id)}
+                        disabled={feedbackDeleting[fb.feedback_id]}
+                        className="absolute top-3 right-3 p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                        title="Delete feedback"
+                      >
+                        {feedbackDeleting[fb.feedback_id] ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
                       <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
                         <span>Order #{fb.order_no}</span>
                         <span>{new Date(fb.created_at).toLocaleDateString()}</span>
