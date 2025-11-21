@@ -7,7 +7,7 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading, error, clearError, user } = useAuth();
-  const [formData, setFormData] = useState({ identifier: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '' });
   const [validationErrors, setValidationErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
 
@@ -23,7 +23,8 @@ const Login = () => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.identifier) errors.identifier = 'Email or username is required';
+    if (!formData.email) errors.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format';
     if (!formData.password) errors.password = 'Password is required';
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -40,7 +41,7 @@ const Login = () => {
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      await login(formData.identifier, formData.password);
+      await login(formData.email, formData.password);
       // Redirect to the page they came from, or dashboard
       navigate(from, { replace: true });
     } catch {
@@ -127,27 +128,27 @@ const Login = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email/Username Input */}
+              {/* Email Input */}
               <div>
-                <label htmlFor="identifier" className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email or Username
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email Address
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    id="identifier"
-                    type="text"
-                    name="identifier"
-                    value={formData.identifier}
+                    id="email"
+                    type="email"
+                    name="email"
+                    value={formData.email}
                     onChange={handleChange}
                     className={`w-full pl-12 pr-4 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition ${
-                      validationErrors.identifier ? 'border-red-500' : 'border-gray-200'
+                      validationErrors.email ? 'border-red-500' : 'border-gray-200'
                     }`}
-                    placeholder="Enter your email or username"
+                    placeholder="Enter your email"
                   />
                 </div>
-                {validationErrors.identifier && (
-                  <p className="mt-2 text-sm text-red-600">{validationErrors.identifier}</p>
+                {validationErrors.email && (
+                  <p className="mt-2 text-sm text-red-600">{validationErrors.email}</p>
                 )}
               </div>
 
