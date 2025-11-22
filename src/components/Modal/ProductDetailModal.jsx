@@ -1,6 +1,9 @@
 import { ShoppingCart, Heart, Shield, Truck, Package, Star } from 'lucide-react';
+import { useFavourites } from '../../context/FavouritesContext';
 
 const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
+  const { isFavourite, toggleFavouriteProduct } = useFavourites();
+  
   if (!product) return null;
 
   const categoryName = typeof product.category === 'object' 
@@ -84,8 +87,32 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
               <ShoppingCart className="w-5 h-5" />
               <span>{displayStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
             </button>
-            <button className="p-4 border-2 border-gray-200 rounded-xl hover:bg-gray-50 transition">
-              <Heart className="w-6 h-6 text-gray-600 hover:text-red-500" />
+            <button 
+              onClick={async () => {
+                const productId = product.product_id || product.id;
+                if (!productId) {
+                  console.error('Product ID not found:', product);
+                  return;
+                }
+                try {
+                  await toggleFavouriteProduct(productId);
+                } catch (err) {
+                  console.error('Failed to toggle favourite', err);
+                }
+              }}
+              className={`p-4 border-2 rounded-xl transition ${
+                isFavourite(product.product_id || product.id)
+                  ? 'border-red-200 bg-red-50'
+                  : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Heart 
+                className={`w-6 h-6 transition ${
+                  isFavourite(product.product_id || product.id)
+                    ? 'text-red-500 fill-red-500'
+                    : 'text-gray-600 hover:text-red-500'
+                }`} 
+              />
             </button>
           </div>
 
