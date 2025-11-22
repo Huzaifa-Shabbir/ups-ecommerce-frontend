@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Zap, Search, Bell, Heart, ShoppingCart, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import { useFavourites } from '../../context/FavouritesContext';
 import { getProducts } from '../../services/api';
 
 const TopBar = ({
@@ -12,8 +13,9 @@ const TopBar = ({
   brandVariant = 'default'
 }) => {
   const navigate = useNavigate();
-  const { accessToken, logout } = useAuth();
+  const { user, accessToken, logout } = useAuth();
   const { getCartCount } = useCart();
+  const { favourites } = useFavourites();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const searchRef = useRef(null);
@@ -101,7 +103,7 @@ const TopBar = ({
         navigate('/orders');
         break;
       case 'password':
-        alert('Change password feature coming soon!');
+        navigate('/change-password');
         break;
       default:
         break;
@@ -222,8 +224,23 @@ const TopBar = ({
             <button className="p-2 hover:bg-gray-100 rounded-lg transition" title="Notifications">
               <Bell className="w-5 h-5 text-gray-600" />
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition" title="Wishlist">
-              <Heart className="w-5 h-5 text-gray-600" />
+            <button
+              onClick={() => {
+                if (user) {
+                  navigate('/favourites');
+                } else {
+                  navigate('/login', { state: { from: '/favourites' } });
+                }
+              }}
+              className="relative p-2 hover:bg-gray-100 rounded-lg transition"
+              title="Favourites"
+            >
+              <Heart className={`w-5 h-5 ${favourites.length > 0 ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
+              {favourites.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {favourites.length}
+                </span>
+              )}
             </button>
             <button
               onClick={() => navigate('/cart')}
@@ -237,14 +254,16 @@ const TopBar = ({
                 </span>
               )}
             </button>
-            {accessToken ? (
+            {(user || accessToken) ? (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setIsMenuOpen((prev) => !prev)}
                   className="flex items-center space-x-2 px-4 py-2 bg-gray-50 text-gray-700 rounded-xl hover:bg-gray-100 transition"
                 >
                   <User className="w-5 h-5" />
-                  <span className="hidden lg:block text-sm font-semibold">Account</span>
+                  <span className="hidden lg:block text-sm font-semibold">
+                    {user?.name || user?.username || 'Account'}
+                  </span>
                 </button>
                 {isMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-xl py-2 z-50">
