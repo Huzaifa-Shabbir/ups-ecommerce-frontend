@@ -1,10 +1,21 @@
+import { useState } from 'react';
 import { ShoppingCart, Heart, Shield, Truck, Package, Star } from 'lucide-react';
 import { useFavourites } from '../../context/FavouritesContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 
 const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
   const { isFavourite, toggleFavouriteProduct } = useFavourites();
+  const { showSuccess, showError } = useSnackbar();
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   
   if (!product) return null;
+
+  const MAX_DESCRIPTION_LENGTH = 150;
+  const description = product.description || '';
+  const shouldTruncate = description.length > MAX_DESCRIPTION_LENGTH;
+  const displayDescription = shouldTruncate && !isDescriptionExpanded 
+    ? description.substring(0, MAX_DESCRIPTION_LENGTH) 
+    : description;
 
   const categoryName = typeof product.category === 'object' 
     ? product.category?.name 
@@ -55,7 +66,7 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
           {/* Price */}
           <div className="flex items-baseline space-x-3">
             <span className="text-4xl font-bold text-green-600">
-              ₹{product.price ? product.price.toLocaleString() : '0'}
+              Rs.{product.price ? product.price.toLocaleString() : '0'}
             </span>
           </div>
 
@@ -72,7 +83,15 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
               <p className="text-gray-600 leading-relaxed">
-                {product.description}
+                {displayDescription}
+                {shouldTruncate && (
+                  <button
+                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                    className="ml-2 text-green-600 hover:text-green-700 font-semibold underline"
+                  >
+                    {isDescriptionExpanded ? '...less' : '...more'}
+                  </button>
+                )}
               </p>
             </div>
           )}
@@ -95,9 +114,16 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
                   return;
                 }
                 try {
-                  await toggleFavouriteProduct(productId);
+                  await toggleFavouriteProduct(productId, showError);
+                  const isFav = isFavourite(productId);
+                  if (isFav) {
+                    showSuccess('Added to favourites');
+                  } else {
+                    showSuccess('Removed from favourites');
+                  }
                 } catch (err) {
                   console.error('Failed to toggle favourite', err);
+                  showError(err.message || 'Failed to update favourite');
                 }
               }}
               className={`p-4 border-2 rounded-xl transition ${
@@ -124,7 +150,7 @@ const ProductDetailModal = ({ product, onClose, onAddToCart }) => {
             </div>
             <div className="flex items-center space-x-2 text-sm text-green-700">
               <Truck className="w-4 h-4" />
-              <span>Free Shipping on orders above ₹5000</span>
+              <span>Free Shipping on orders above Rs. 5000</span>
             </div>
           </div>
         </div>
