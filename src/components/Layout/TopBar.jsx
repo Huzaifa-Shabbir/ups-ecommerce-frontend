@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Search, Bell, Heart, ShoppingCart, User } from 'lucide-react';
+import { Zap, Search, Heart, ShoppingCart, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useFavourites } from '../../context/FavouritesContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import { getProducts } from '../../services/api';
 
 const TopBar = ({
@@ -16,6 +17,7 @@ const TopBar = ({
   const { user, accessToken, logout } = useAuth();
   const { getCartCount } = useCart();
   const { favourites } = useFavourites();
+  const { showSuccess, showError } = useSnackbar();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const searchRef = useRef(null);
@@ -88,7 +90,7 @@ const TopBar = ({
     setShowSuggestions(false);
     navigate('/dashboard', {
       state: {
-        highlightedProductId: product.product_id || product.id
+        selectedProduct: product
       }
     });
   };
@@ -97,7 +99,7 @@ const TopBar = ({
     setIsMenuOpen(false);
     switch (action) {
       case 'profile':
-        alert('Profile page coming soon!');
+        navigate('/profile');
         break;
       case 'orders':
         navigate('/orders');
@@ -112,8 +114,15 @@ const TopBar = ({
 
   const handleLogout = async () => {
     setIsMenuOpen(false);
-    await logout();
-    navigate('/login');
+    try {
+      await logout();
+      showSuccess('Logged out successfully');
+      setTimeout(() => {
+        navigate('/login');
+      }, 500);
+    } catch (err) {
+      showError('Failed to logout. Please try again.');
+    }
   };
 
   const renderBrand = () => {
@@ -221,9 +230,6 @@ const TopBar = ({
           )}
 
           <div className="flex items-center space-x-3">
-            <button className="p-2 hover:bg-gray-100 rounded-lg transition" title="Notifications">
-              <Bell className="w-5 h-5 text-gray-600" />
-            </button>
             <button
               onClick={() => {
                 if (user) {
