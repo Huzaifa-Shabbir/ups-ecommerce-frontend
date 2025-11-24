@@ -1,20 +1,23 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, ShoppingCart, User, Bell, Menu, Heart, TrendingUp, Package, Zap, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
 import { getCategories, getProducts, getAvailableServices } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import { useFavourites } from '../../context/FavouritesContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import Modal from '../../components/Modal/Modal';
 import ProductDetailModal from '../../components/Modal/ProductDetailModal';
 import ServiceDetailModal from '../../components/Modal/ServiceDetailModal';
-import TopBar from '../../components/Layout/TopBar'; // <-- Add this import
+import TopBar from '../../components/Layout/TopBar';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { accessToken, logout } = useAuth();
-  const { addToCart, getCartCount } = useCart();
+  const { addToCart, getCartCount, cartItems } = useCart();
   const { isFavourite, toggleFavouriteProduct } = useFavourites();
+  const { showSuccess, showError } = useSnackbar();
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
@@ -22,6 +25,13 @@ const Dashboard = () => {
   const [err, setErr] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const categoryScrollRef = useRef(null);
+  const productsSectionRef = useRef(null);
+  const categoriesSectionRef = useRef(null);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -67,11 +77,46 @@ const Dashboard = () => {
     fetchData();
   }, [accessToken]);
 
+  // Check if category scrolling is needed
+  useEffect(() => {
+    const checkScroll = () => {
+      if (categoryScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = categoryScrollRef.current;
+        setShowLeftArrow(scrollLeft > 0);
+        setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 10);
+      }
+    };
+
+    checkScroll();
+    const scrollElement = categoryScrollRef.current;
+    if (scrollElement) {
+      scrollElement.addEventListener('scroll', checkScroll);
+      // Check on resize
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        scrollElement.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [categories]);
+
+  // Handle product selection from search
+  useEffect(() => {
+    if (location.state?.selectedProduct) {
+      const product = location.state.selectedProduct;
+      setSelectedProduct(product);
+      setIsProductModalOpen(true);
+      // Clear the state to prevent reopening on re-render
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   const filteredProducts = products.filter(p => {
     const categoryName = typeof p.category === 'object' ? p.category?.name : p.category;
     const matchesCategory = selectedCategory === 'all' || categoryName === selectedCategory;
     const matchesSearch = searchTerm === '' || (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    const matchesPrice = (p.price || 0) >= priceRange.min && (p.price || 0) <= priceRange.max;
+    return matchesCategory && matchesSearch && matchesPrice;
   });
 
   const handleProductClick = (product) => {
@@ -86,14 +131,28 @@ const Dashboard = () => {
 
   const handleAddToCart = () => {
     if (selectedProduct) {
+      const maxQuantity = selectedProduct.Quantity || 0;
+      const existingItem = cartItems.find(item => item.id === selectedProduct.id);
+      
+      if (existingItem && existingItem.quantity >= maxQuantity) {
+        showError(`Only ${maxQuantity} units available in stock`);
+        return;
+      }
+      
       addToCart(selectedProduct);
+      showSuccess('Product added to cart');
       setIsProductModalOpen(false);
     }
   };
 
-  const handleBookService = () => {
+  const handleBookService = (result) => {
+    // Service request is handled in the modal
+    // This callback can be used for additional actions after booking
+    if (result) {
+      console.log('Service request created:', result);
+      // Snackbar is already shown in ServiceDetailModal, so we don't need to show it again
+    }
     setIsServiceModalOpen(false);
-    alert('Service booking request submitted!');
   };
 
   const handleLogout = async () => {
@@ -155,6 +214,12 @@ const Dashboard = () => {
                 >
                   Learn More
                 </button>
+                <button 
+                  onClick={() => navigate('/resources')}
+                  className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-600 transition"
+                >
+                  Resources
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -191,64 +256,99 @@ const Dashboard = () => {
       {!loading && !err && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Categories */}
-          <section className="mb-12">
+          <section className="mb-12" ref={categoriesSectionRef}>
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Shop by Category</h2>
             {categories.length > 0 ? (
-              <div className="overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
-                <div className="flex space-x-4 min-w-max">
-                  {categories.map(cat => (
-                    <button
-                      key={cat.category_id}
-                      onClick={() => setSelectedCategory(cat.name)}
-                      className={`relative overflow-hidden rounded-xl transition transform hover:scale-105 shadow-md flex-shrink-0 w-64 ${
-                        selectedCategory === cat.name
-                          ? 'ring-4 ring-green-500'
-                          : 'hover:shadow-lg'
-                      }`}
-                    >
-                      {/* Category Image Background */}
-                      <div className="relative h-32 overflow-hidden">
-                        {cat.image ? (
-                          <img 
-                            src={cat.image} 
-                            alt={cat.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name || 'Category')}&size=300&background=random&color=fff&bold=true`;
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                            <span className="text-5xl">⚡</span>
+              <div className="relative">
+                {showLeftArrow && (
+                  <button
+                    onClick={() => {
+                      if (categoryScrollRef.current) {
+                        categoryScrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+                      }
+                    }}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-gray-700" />
+                  </button>
+                )}
+                <div className="overflow-x-auto pb-4 -mx-4 px-12 hide-scrollbar" ref={categoryScrollRef}>
+                  <div className="flex space-x-4 min-w-max">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.category_id}
+                        onClick={() => {
+                          // Toggle category selection
+                          if (selectedCategory === cat.name) {
+                            setSelectedCategory('all');
+                          } else {
+                            setSelectedCategory(cat.name);
+                          }
+                        }}
+                        className={`relative overflow-hidden rounded-xl transition transform hover:scale-105 shadow-md flex-shrink-0 w-64 ${
+                          selectedCategory === cat.name
+                            ? 'ring-4 ring-green-500'
+                            : 'hover:shadow-lg'
+                        }`}
+                      >
+                        {/* Category Image Background */}
+                        <div className="relative h-32 overflow-hidden">
+                          {cat.image ? (
+                            <img 
+                              src={cat.image} 
+                              alt={cat.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(cat.name || 'Category')}&size=300&background=random&color=fff&bold=true`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                              <span className="text-5xl">⚡</span>
+                            </div>
+                          )}
+                          {/* Overlay */}
+                          <div className={`absolute inset-0 bg-gradient-to-t ${
+                            selectedCategory === cat.name 
+                              ? 'from-green-600/90 to-green-500/70' 
+                              : 'from-black/60 to-black/20'
+                          } transition-all`}></div>
+                        </div>
+                        
+                        {/* Category Info */}
+                        <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
+                          <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{cat.name}</h3>
+                          <p className="text-xs text-white/90 line-clamp-2 drop-shadow">
+                            {cat.description || 'Browse products'}
+                          </p>
+                        </div>
+                        
+                        {/* Selected Indicator */}
+                        {selectedCategory === cat.name && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
+                            <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
                           </div>
                         )}
-                        {/* Overlay */}
-                        <div className={`absolute inset-0 bg-gradient-to-t ${
-                          selectedCategory === cat.name 
-                            ? 'from-green-600/90 to-green-500/70' 
-                            : 'from-black/60 to-black/20'
-                        } transition-all`}></div>
-                      </div>
-                      
-                      {/* Category Info */}
-                      <div className="absolute inset-0 p-4 flex flex-col justify-end text-white">
-                        <h3 className="font-bold text-lg mb-1 drop-shadow-lg">{cat.name}</h3>
-                        <p className="text-xs text-white/90 line-clamp-2 drop-shadow">
-                          {cat.description || 'Browse products'}
-                        </p>
-                      </div>
-                      
-                      {/* Selected Indicator */}
-                      {selectedCategory === cat.name && (
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
-                          <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                {showRightArrow && (
+                  <button
+                    onClick={() => {
+                      if (categoryScrollRef.current) {
+                        categoryScrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+                      }
+                    }}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-white transition"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight className="w-6 h-6 text-gray-700" />
+                  </button>
+                )}
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -258,21 +358,69 @@ const Dashboard = () => {
           </section>
 
           {/* Products */}
-          <section className="mb-12">
+          <section className="mb-12" ref={productsSectionRef}>
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
                 {selectedCategory === 'all' ? 'All Products' : `${selectedCategory} Products`}
               </h2>
-              {selectedCategory !== 'all' && (
-                <button 
-                  onClick={() => setSelectedCategory('all')}
-                  className="text-green-600 hover:text-green-700 font-medium flex items-center space-x-1"
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
                 >
-                  <span>Clear Filter</span>
-                  <span>×</span>
+                  <Filter className="w-5 h-5" />
+                  <span>Filters</span>
                 </button>
-              )}
+                {selectedCategory !== 'all' && (
+                  <button 
+                    onClick={() => setSelectedCategory('all')}
+                    className="text-green-600 hover:text-green-700 font-medium flex items-center space-x-1"
+                  >
+                    <span>Clear Filter</span>
+                    <span>×</span>
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Filters Panel */}
+            {showFilters && (
+              <div className="mb-6 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Price Range</label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        value={priceRange.min}
+                        onChange={(e) => setPriceRange({ ...priceRange, min: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="Min"
+                      />
+                      <span className="text-gray-500">-</span>
+                      <input
+                        type="number"
+                        value={priceRange.max}
+                        onChange={(e) => setPriceRange({ ...priceRange, max: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        placeholder="Max"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-end">
+                    <button
+                      onClick={() => {
+                        setPriceRange({ min: 0, max: 100000 });
+                        setShowFilters(false);
+                      }}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 transition"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredProducts.map(prod => (
@@ -310,9 +458,16 @@ const Dashboard = () => {
                             return;
                           }
                           try {
-                            await toggleFavouriteProduct(productId);
+                            await toggleFavouriteProduct(productId, showError);
+                            const isFav = isFavourite(productId);
+                            if (isFav) {
+                              showSuccess('Added to favourites');
+                            } else {
+                              showSuccess('Removed from favourites');
+                            }
                           } catch (err) {
                             console.error('Failed to toggle favourite', err);
+                            showError(err.message || 'Failed to update favourite');
                           }
                         }}
                       >
@@ -335,13 +490,22 @@ const Dashboard = () => {
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">{prod.description || 'No description available'}</p>
                       <div className="flex justify-between items-center">
                         <span className="text-2xl font-bold text-green-600">
-                          ₹{prod.price ? prod.price.toLocaleString() : '0'}
+                          Rs.{prod.price ? prod.price.toLocaleString() : '0'}
                         </span>
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             if ((prod.Quantity || 0) > 0) {
-                              addToCart(prod);
+                              const maxQty = prod.Quantity || 0;
+                              const existingItem = cartItems.find(item => item.id === prod.id);
+                              if (existingItem && existingItem.quantity >= maxQty) {
+                                showError(`Only ${maxQty} units available in stock`);
+                              } else {
+                                addToCart(prod);
+                                showSuccess('Product added to cart');
+                              }
+                            } else {
+                              showError('Product is out of stock');
                             }
                           }}
                           disabled={(prod.Quantity || 0) === 0}
@@ -379,7 +543,7 @@ const Dashboard = () => {
                     <p className="text-gray-300 mb-4">Professional service with warranty</p>
                     <div className="flex justify-between items-center">
                       <span className="text-2xl font-bold text-green-400">
-                        ₹{serv.price ? serv.price.toLocaleString() : '0'}
+                        Rs.{serv.price ? serv.price.toLocaleString() : '0'}
                       </span>
                       <button 
                         onClick={(e) => {
@@ -413,17 +577,37 @@ const Dashboard = () => {
             <div>
               <h4 className="font-semibold text-white mb-4">Products</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-green-400">UPS Systems</a></li>
-                <li><a href="#" className="hover:text-green-400">Batteries</a></li>
-                <li><a href="#" className="hover:text-green-400">Inverters</a></li>
+                {categories.slice(0, 3).map((cat) => (
+                  <li key={cat.category_id}>
+                    <button
+                      onClick={() => {
+                        setSelectedCategory(cat.name);
+                        // Scroll to categories section with offset for top bar
+                        setTimeout(() => {
+                          if (categoriesSectionRef.current) {
+                            const elementPosition = categoriesSectionRef.current.getBoundingClientRect().top;
+                            const offsetPosition = elementPosition + window.pageYOffset - 80; // 80px offset for top bar
+                            window.scrollTo({
+                              top: offsetPosition,
+                              behavior: 'smooth'
+                            });
+                          }
+                        }, 100);
+                      }}
+                      className="hover:text-green-400 text-left"
+                    >
+                      {cat.name}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-white mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="https://wa.me/923304325987" target="_blank" rel="noopener noreferrer" className="hover:text-green-400">Contact Us</a></li>
-                <li><a href="#" className="hover:text-green-400">FAQs</a></li>
-                <li><a href="#" className="hover:text-green-400">Warranty</a></li>
+                <li><button onClick={() => navigate('/faq')} className="hover:text-green-400 text-left">FAQs</button></li>
+                <li><button onClick={() => navigate('/warranty')} className="hover:text-green-400 text-left">Warranty</button></li>
               </ul>
             </div>
             <div>
