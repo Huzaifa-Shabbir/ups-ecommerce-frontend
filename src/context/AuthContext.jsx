@@ -155,6 +155,43 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const changePassword = useCallback(async (email, oldPassword, newPassword) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_AUTH_BASE}/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, oldPassword, newPassword }),
+      });
+
+      if (!res.ok) {
+        const payload = await (res.headers.get('content-type')?.includes('application/json') ? res.json() : Promise.resolve({ message: `Password change failed (status ${res.status})` }));
+        throw new Error(payload.message || `Password change failed (status ${res.status})`);
+      }
+
+      const data = await parseResponse(res);
+      
+      // Update user data if returned
+      if (data.user) {
+        const userData = data.user;
+        // Normalize user_Id to user_id
+        if (userData.user_Id) {
+          userData.user_id = userData.user_Id;
+        }
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+      }
+      
+      return data;
+    } catch (err) {
+      setError(err.message || 'Password change failed');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetch(`${API_AUTH_BASE}/logout`, {
@@ -170,7 +207,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isLoading, error, login, register, resetPassword, logout, clearError }}>
+    <AuthContext.Provider value={{ user, setUser, accessToken, isLoading, error, login, register, resetPassword, changePassword, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );
