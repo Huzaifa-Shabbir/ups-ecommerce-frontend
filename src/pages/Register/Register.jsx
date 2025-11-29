@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import { Zap, Mail, Lock, Eye, EyeOff, User as UserIcon, ArrowRight, CheckCircle, Phone } from 'lucide-react';
 
 const Register = () => {
   const navigate = useNavigate();
   const { register, isLoading, error, clearError, user } = useAuth();
+  const { showSuccess, showError } = useSnackbar();
   const [formData, setFormData] = useState({ 
     name: '',
     email: '', 
@@ -69,9 +71,12 @@ const Register = () => {
         formData.password,
         parseInt(formData.phone_Number, 10)
       );
-      navigate('/login');
-    } catch {
-      // handled in context
+      showSuccess('Account created successfully! Redirecting to login...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+    } catch (err) {
+      showError(err.message || 'Registration failed. Please try again.');
     }
   };
 
