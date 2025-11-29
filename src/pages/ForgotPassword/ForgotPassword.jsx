@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import { Zap, Mail, Lock, ArrowRight, CheckCircle } from 'lucide-react';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
   const { resetPassword, isLoading, error, clearError } = useAuth();
+  const { showSuccess, showError } = useSnackbar();
   const [formData, setFormData] = useState({ email: '', new_password: '', confirmPassword: '' });
   const [validationErrors, setValidationErrors] = useState({});
   const [success, setSuccess] = useState(false);
@@ -34,12 +36,12 @@ const ForgotPassword = () => {
     if (!validateForm()) return;
     try {
       await resetPassword(formData.email, formData.new_password);
-      setSuccess(true);
+      showSuccess('Password reset successfully! Redirecting to login...');
       setTimeout(() => {
         navigate('/login');
-      }, 2000);
-    } catch {
-      // error handled by context
+      }, 1500);
+    } catch (err) {
+      showError(err.message || 'Password reset failed. Please try again.');
     }
   };
 
