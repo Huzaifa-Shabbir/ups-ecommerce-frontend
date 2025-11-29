@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Zap, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useSnackbar } from '../../context/SnackbarContext';
+import { Zap, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertTriangle, Mail } from 'lucide-react';
 
 const ChangePassword = () => {
   const navigate = useNavigate();
-  const { resetPassword, isLoading, error, clearError, user } = useAuth();
+  const { changePassword, isLoading, error, clearError, user } = useAuth();
+  const { showSuccess, showError } = useSnackbar();
   const [formData, setFormData] = useState({ 
-    currentPassword: '', 
+    oldPassword: '',
     newPassword: '', 
     confirmPassword: '' 
   });
   const [validationErrors, setValidationErrors] = useState({});
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -37,11 +39,13 @@ const ChangePassword = () => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.currentPassword) errors.currentPassword = 'Current password is required';
+    if (!formData.oldPassword) errors.oldPassword = 'Current password is required';
     if (!formData.newPassword) errors.newPassword = 'New password is required';
     else if (formData.newPassword.length < 6) errors.newPassword = 'Password must be at least 6 characters';
     if (formData.newPassword !== formData.confirmPassword) errors.confirmPassword = 'Passwords do not match';
-    if (formData.currentPassword === formData.newPassword) errors.newPassword = 'New password must be different from current password';
+    if (formData.oldPassword && formData.newPassword && formData.oldPassword === formData.newPassword) {
+      errors.newPassword = 'New password must be different from current password';
+    }
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -58,14 +62,14 @@ const ChangePassword = () => {
     e.preventDefault();
     if (!validateForm()) return;
     try {
-      await resetPassword(user.email, formData.newPassword);
-      setSuccess(true);
-      setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      await changePassword(user.email, formData.oldPassword, formData.newPassword);
+      showSuccess('Password changed successfully! Redirecting to dashboard...');
+      setFormData({ oldPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => {
         navigate('/dashboard');
-      }, 2000);
-    } catch {
-      // error handled by context
+      }, 1500);
+    } catch (err) {
+      showError(err.message || 'Failed to change password. Please try again.');
     }
   };
 
@@ -111,34 +115,52 @@ const ChangePassword = () => {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Email Display (read-only) */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={user.email}
+                    disabled
+                    className="w-full pl-12 pr-4 py-3.5 border-2 border-gray-200 rounded-xl bg-gray-50 text-gray-600 cursor-not-allowed"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-gray-500">Password will be changed for this email address</p>
+              </div>
+
               {/* Current Password Input */}
               <div>
-                <label htmlFor="currentPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="oldPassword" className="block text-sm font-semibold text-gray-700 mb-2">
                   Current Password
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    id="currentPassword"
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    name="currentPassword"
-                    value={formData.currentPassword}
+                    id="oldPassword"
+                    type={showOldPassword ? 'text' : 'password'}
+                    name="oldPassword"
+                    value={formData.oldPassword}
                     onChange={handleChange}
                     className={`w-full pl-12 pr-12 py-3.5 border-2 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition ${
-                      validationErrors.currentPassword ? 'border-red-500' : 'border-gray-200'
+                      validationErrors.oldPassword ? 'border-red-500' : 'border-gray-200'
                     }`}
                     placeholder="Enter your current password"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    onClick={() => setShowOldPassword(!showOldPassword)}
                     className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showOldPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
-                {validationErrors.currentPassword && (
-                  <p className="mt-2 text-sm text-red-600">{validationErrors.currentPassword}</p>
+                {validationErrors.oldPassword && (
+                  <p className="mt-2 text-sm text-red-600">{validationErrors.oldPassword}</p>
                 )}
               </div>
 

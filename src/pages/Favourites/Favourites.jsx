@@ -4,6 +4,7 @@ import { Heart, ShoppingCart, Package, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFavourites } from '../../context/FavouritesContext';
 import { useCart } from '../../context/CartContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import { getProductById } from '../../services/api';
 import TopBar from '../../components/Layout/TopBar';
 import Modal from '../../components/Modal/Modal';
@@ -14,6 +15,7 @@ const Favourites = () => {
   const { user } = useAuth();
   const { favourites, loading: favouritesLoading, isFavourite, toggleFavouriteProduct, loadFavourites } = useFavourites();
   const { addToCart } = useCart();
+  const { showSuccess, showError } = useSnackbar();
   const [favouriteProducts, setFavouriteProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -158,7 +160,13 @@ const Favourites = () => {
                         onClick={async (e) => {
                           e.stopPropagation();
                           try {
-                            await toggleFavouriteProduct(productId);
+                            await toggleFavouriteProduct(productId, showError);
+                            const isFav = isFavourite(productId);
+                            if (isFav) {
+                              showSuccess('Added to favourites');
+                            } else {
+                              showSuccess('Removed from favourites');
+                            }
                             // Reload favourites after toggle
                             await loadFavourites();
                           } catch (err) {
@@ -185,7 +193,7 @@ const Favourites = () => {
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description || 'No description available'}</p>
                       <div className="flex justify-between items-center">
                         <span className="text-2xl font-bold text-green-600">
-                          ₹{product.price ? product.price.toLocaleString() : '0'}
+                          Rs.{product.price ? product.price.toLocaleString() : '0'}
                         </span>
                         <button
                           onClick={(e) => {
