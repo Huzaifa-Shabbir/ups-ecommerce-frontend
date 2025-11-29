@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Trash2, Plus, Minus, CreditCard, MapPin, Loader2, AlertTriangle, ShoppingCart } from 'lucide-react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSnackbar } from '../../context/SnackbarContext';
 import { createOrder, getAddressesByCustomer } from '../../services/api';
 import TopBar from '../../components/Layout/TopBar';
 
@@ -10,6 +11,7 @@ const Cart = () => {
   const navigate = useNavigate();
   const { cartItems, removeFromCart, updateQuantity, getCartTotal, clearCart, getCartCount } = useCart();
   const { user, accessToken } = useAuth();
+  const { showSuccess, showError } = useSnackbar();
   const [addresses, setAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
@@ -46,11 +48,11 @@ const Cart = () => {
       return;
     }
     if (cartItems.length === 0) {
-      setCheckoutError('Your cart is empty.');
+      showError('Your cart is empty.');
       return;
     }
     if (!selectedAddressId) {
-      setCheckoutError('Please select a delivery address.');
+      showError('Please select a delivery address.');
       return;
     }
 
@@ -71,10 +73,13 @@ const Cart = () => {
       };
       await createOrder(payload, accessToken || '');
       clearCart();
-      navigate('/orders');
+      showSuccess('Order placed successfully!');
+      setTimeout(() => {
+        navigate('/orders');
+      }, 1000);
     } catch (err) {
       console.error('Checkout failed', err);
-      setCheckoutError(err.message || 'Failed to place order. Please try again.');
+      showError(err.message || 'Failed to place order. Please try again.');
     } finally {
       setOrderSubmitting(false);
     }
@@ -167,7 +172,10 @@ const Cart = () => {
                               </p>
                             </div>
                             <button
-                              onClick={() => removeFromCart(item.id)}
+                              onClick={() => {
+                                removeFromCart(item.id);
+                                showSuccess('Product removed from cart');
+                              }}
                               className="text-red-600 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition"
                             >
                               <Trash2 className="w-5 h-5" />
@@ -202,10 +210,10 @@ const Cart = () => {
                             </div>
                             <div className="text-right">
                               <p className="text-2xl font-bold text-green-600">
-                                ₹{(item.price * item.quantity).toLocaleString()}
+                                Rs.{(item.price * item.quantity).toLocaleString()}
                               </p>
                               {item.quantity > 1 && (
-                                <p className="text-xs text-gray-500">₹{item.price.toLocaleString()} each</p>
+                                <p className="text-xs text-gray-500">Rs.{item.price.toLocaleString()} each</p>
                               )}
                             </div>
                           </div>
@@ -227,18 +235,18 @@ const Cart = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between text-gray-700">
                     <span>Subtotal ({cartItems.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                    <span className="font-semibold">₹{total.toLocaleString()}</span>
+                    <span className="font-semibold">Rs.{total.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between text-gray-700">
                     <span>Shipping</span>
                     <span className="font-semibold">
-                      {shipping === 0 ? <span className="text-green-600">Free</span> : `₹${shipping}`}
+                      {shipping === 0 ? <span className="text-green-600">Free</span> : `Rs.${shipping}`}
                     </span>
                   </div>
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex justify-between text-xl font-bold text-gray-900">
                       <span>Total</span>
-                      <span className="text-green-600">₹{grandTotal.toLocaleString()}</span>
+                      <span className="text-green-600">Rs.{grandTotal.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
@@ -257,7 +265,7 @@ const Cart = () => {
                         <span>Delivery Address</span>
                       </span>
                       <button
-                        onClick={() => navigate('/orders')}
+                        onClick={() => navigate('/profile')}
                         className="text-xs font-semibold text-green-600 hover:text-green-700"
                       >
                         Manage
@@ -271,7 +279,7 @@ const Cart = () => {
                       </div>
                     ) : addresses.length === 0 ? (
                       <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 text-sm text-yellow-800">
-                        No saved addresses. Please add one from the Orders page.
+                        No saved addresses. Please add one from the Profile page.
                       </div>
                     ) : (
                       <div className="space-y-2">
