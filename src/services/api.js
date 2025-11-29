@@ -415,6 +415,53 @@ export const createAddress = async (addressData, token = null) => {
   return handleResponse(response);
 };
 
+export const updateAddress = async (addressId, addressData, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/addresses/${addressId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(addressData)
+  });
+  return handleResponse(response);
+};
+
+export const deleteAddress = async (addressId, token = null) => {
+  const headers = {};
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/addresses/${addressId}`, {
+    method: 'DELETE',
+    headers
+  });
+  return handleResponse(response);
+};
+
+export const deactivateAddress = async (addressId, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const url = `${API_BASE_URL}/addresses/deactivate/${addressId}`;
+  console.log('Deactivating address:', { addressId, url, method: 'PATCH' });
+
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers
+  });
+  return handleResponse(response);
+};
+
 // Favourites API
 export const getFavouritesByUser = async (userId, token = null) => {
   const headers = {};
@@ -455,6 +502,103 @@ export const toggleFavourite = async (userId, productId, token = null) => {
     body: JSON.stringify(requestBody)
   });
   
+  return handleResponse(response);
+};
+
+// Slots API
+export const getSlots = async (token = null) => {
+  const headers = {};
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/slots`, { headers });
+  const data = await handleResponse(response);
+  return Array.isArray(data) ? data : (data.slots || []);
+};
+
+// Service Requests API
+export const createServiceRequest = async (requestData, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const url = `${API_BASE_URL}/service-requests`;
+  console.log('Creating service request:', { url, requestData, hasToken: !!token });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestData)
+  });
+
+  console.log('Service request response:', { status: response.status, statusText: response.statusText });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    console.error('Service request error response:', errorText);
+  }
+
+  return handleResponse(response);
+};
+
+// Resources API
+export const getResources = async (token = null) => {
+  const headers = {};
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/resources/customers`, { headers });
+  const data = await handleResponse(response);
+  return Array.isArray(data) ? data : (data.resources || []);
+};
+
+// Auth API - Change Password
+export const changePassword = async (passwordData, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(passwordData)
+  });
+  return handleResponse(response);
+};
+
+// Customer API
+export const getCustomerById = async (userId, token = null) => {
+  const headers = {};
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/customer/active/${userId}`, { headers });
+  const data = await handleResponse(response);
+  return data.customer || data;
+};
+
+export const updateCustomer = async (userId, customerData, token = null) => {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}/customer/${userId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(customerData)
+  });
   return handleResponse(response);
 };
 
@@ -509,8 +653,27 @@ export default {
   // Addresses
   getAddressesByCustomer,
   createAddress,
+  updateAddress,
+  deleteAddress,
+  deactivateAddress,
   
   // Favourites
   getFavouritesByUser,
-  toggleFavourite
+  toggleFavourite,
+  
+  // Slots
+  getSlots,
+  
+  // Service Requests
+  createServiceRequest,
+  
+  // Resources
+  getResources,
+  
+  // Auth
+  changePassword,
+  
+  // Customer
+  getCustomerById,
+  updateCustomer
 };
