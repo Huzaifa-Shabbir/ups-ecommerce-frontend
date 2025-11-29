@@ -25,7 +25,6 @@ export const CartProvider = ({ children }) => {
         const maxQuantity = product.Quantity || 0;
         
         if (newQuantity > maxQuantity) {
-          alert(`Only ${maxQuantity} units available in stock`);
           return prevItems;
         }
         
@@ -59,7 +58,7 @@ export const CartProvider = ({ children }) => {
       const maxQuantity = product?.Quantity || 0;
       
       if (newQuantity > maxQuantity) {
-        alert(`Only ${maxQuantity} units available in stock`);
+        // Return false to indicate error - components will handle snackbar
         return prevItems;
       }
 

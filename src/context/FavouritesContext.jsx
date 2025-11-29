@@ -49,9 +49,13 @@ export const FavouritesProvider = ({ children }) => {
     });
   }, [favourites]);
 
-  const toggleFavouriteProduct = useCallback(async (productId) => {
+  const toggleFavouriteProduct = useCallback(async (productId, showSnackbar) => {
     if (!user?.user_id) {
-      alert('Please login to add favourites');
+      if (showSnackbar) {
+        showSnackbar('Please login first', 'error');
+      } else {
+        alert('Please login to add favourites');
+      }
       return;
     }
 
@@ -97,8 +101,7 @@ export const FavouritesProvider = ({ children }) => {
       return result;
     } catch (err) {
       console.error('Failed to toggle favourite', err);
-      // Show user-friendly error message
-      alert(err.message || 'Failed to update favourite. Please try again.');
+      // Error will be handled by components using snackbar
       throw err;
     }
   }, [user?.user_id, accessToken, loadFavourites]);
