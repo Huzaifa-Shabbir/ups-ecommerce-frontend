@@ -191,7 +191,7 @@ const Favourites = () => {
                       )}
                       <h3 className="font-bold text-lg mt-2 mb-1 text-gray-900">{product.name || 'Unnamed Product'}</h3>
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">{product.description || 'No description available'}</p>
-                      <div className="flex justify-between items-center">
+                      <div className="flex flex-col gap-3">
                         <span className="text-2xl font-bold text-green-600">
                           Rs.{product.price ? product.price.toLocaleString() : '0'}
                         </span>
@@ -203,7 +203,7 @@ const Favourites = () => {
                             }
                           }}
                           disabled={displayStock === 0}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center space-x-2"
+                          className="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
                         >
                           <ShoppingCart className="w-4 h-4" />
                           <span>{displayStock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
