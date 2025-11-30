@@ -66,6 +66,7 @@ const Login = () => {
       <div className="relative w-full max-w-6xl flex flex-col lg:flex-row bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Left Side - Branding */}
         <div className="lg:w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 p-12 flex flex-col justify-center text-white relative overflow-hidden">
+          <div className="absolute top-6 right-6 w-24 h-24 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full opacity-30"></div>
           {/* Animated Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 left-0 w-40 h-40 border-4 border-white rounded-full"></div>
@@ -82,7 +83,7 @@ const Login = () => {
             </div>
 
             <h2 className="text-3xl font-bold mb-4">Welcome Back!</h2>
-            <p className="text-green-50 text-lg mb-8">
+            <p className="text-blue-50 text-lg mb-8">
               Sign in to access premium UPS systems and power solutions for all your needs.
             </p>
 
@@ -93,7 +94,7 @@ const Login = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold">Premium Products</h3>
-                  <p className="text-green-50 text-sm">High-quality UPS systems</p>
+                  <p className="text-blue-50 text-sm">High-quality UPS systems</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -102,7 +103,7 @@ const Login = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold">Expert Support</h3>
-                  <p className="text-green-50 text-sm">24/7 customer service</p>
+                  <p className="text-blue-50 text-sm">24/7 customer service</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
@@ -111,7 +112,7 @@ const Login = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold">Fast Delivery</h3>
-                  <p className="text-green-50 text-sm">Quick and secure shipping</p>
+                  <p className="text-blue-50 text-sm">Quick and secure shipping</p>
                 </div>
               </div>
             </div>

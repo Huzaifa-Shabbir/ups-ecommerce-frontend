@@ -104,6 +104,7 @@ const Register = () => {
       <div className="relative w-full max-w-6xl flex flex-col lg:flex-row-reverse bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Right Side - Branding */}
         <div className="lg:w-1/2 bg-gradient-to-br from-green-600 via-emerald-600 to-teal-600 p-12 flex flex-col justify-center text-white relative overflow-hidden">
+          <div className="absolute top-6 left-6 w-24 h-24 bg-gradient-to-br from-gray-900 to-gray-800 rounded-full opacity-30"></div>
           {/* Animated Background Pattern */}
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-40 h-40 border-4 border-white rounded-full"></div>
@@ -120,7 +121,7 @@ const Register = () => {
             </div>
 
             <h2 className="text-3xl font-bold mb-4">Start Your Journey!</h2>
-            <p className="text-green-50 text-lg mb-8">
+            <p className="text-blue-50 text-lg mb-8">
               Join thousands of satisfied customers who trust Electrify for their power solutions.
             </p>
 
@@ -131,7 +132,7 @@ const Register = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Exclusive Deals</h3>
-                  <p className="text-green-50">Get access to member-only discounts and offers</p>
+                  <p className="text-blue-50">Get access to member-only discounts and offers</p>
                 </div>
               </div>
               <div className="flex items-start space-x-4">
@@ -140,7 +141,7 @@ const Register = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Order Tracking</h3>
-                  <p className="text-green-50">Track your orders in real-time from dispatch to delivery</p>
+                  <p className="text-blue-50">Track your orders in real-time from dispatch to delivery</p>
                 </div>
               </div>
               <div className="flex items-start space-x-4">
@@ -149,7 +150,7 @@ const Register = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-lg">Priority Support</h3>
-                  <p className="text-green-50">Get faster responses from our expert support team</p>
+                  <p className="text-blue-50">Get faster responses from our expert support team</p>
                 </div>
               </div>
             </div>
