@@ -146,12 +146,12 @@ const About = () => {
                 dependability are at the heart of everything we do.
               </p>
             </div>
-            <div className="bg-white rounded-xl shadow-md p-8 hover:shadow-xl transition">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                <Users className="w-7 h-7 text-green-600" />
+            <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl shadow-md p-8 hover:shadow-xl transition text-white">
+              <div className="w-14 h-14 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
+                <Users className="w-7 h-7 text-green-400" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Customer First</h3>
-              <p className="text-gray-700">
+              <h3 className="text-2xl font-bold text-white mb-4">Customer First</h3>
+              <p className="text-gray-300">
                 Your satisfaction is our priority. We listen, understand, and go above and beyond 
                 to meet your power backup needs.
               </p>
@@ -199,11 +199,11 @@ const About = () => {
       </section>
 
       {/* Contact Section */}
-      <section className="py-16 bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 text-white">
+      <section className="py-16 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Get in Touch</h2>
-            <p className="text-xl text-green-50">We'd love to hear from you</p>
+            <p className="text-xl text-blue-50">We'd love to hear from you</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
@@ -211,7 +211,7 @@ const About = () => {
                 <Phone className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold mb-2">Phone</h3>
-              <a href="https://wa.me/923304325987" target="_blank" rel="noopener noreferrer" className="text-green-50 hover:text-white transition">
+              <a href="https://wa.me/923304325987" target="_blank" rel="noopener noreferrer" className="text-blue-50 hover:text-white transition">
                 +92 330 4325987
               </a>
             </div>
@@ -220,7 +220,7 @@ const About = () => {
                 <Mail className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold mb-2">Email</h3>
-              <a href="mailto:info@electrify.com" className="text-green-50 hover:text-white transition">
+              <a href="mailto:info@electrify.com" className="text-blue-50 hover:text-white transition">
                 info@electrify.com
               </a>
             </div>
@@ -229,7 +229,7 @@ const About = () => {
                 <MapPin className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold mb-2">Location</h3>
-              <p className="text-green-50">Serving Nationwide</p>
+              <p className="text-blue-50">Serving Nationwide</p>
             </div>
           </div>
           <div className="text-center mt-12">
@@ -237,7 +237,7 @@ const About = () => {
               href="https://wa.me/923304325987"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-white text-green-600 px-8 py-4 rounded-xl font-semibold hover:bg-green-50 transition transform hover:scale-105"
+              className="inline-block bg-white text-blue-600 px-8 py-4 rounded-xl font-semibold hover:bg-blue-50 transition transform hover:scale-105"
             >
               Contact Us on WhatsApp
             </a>
